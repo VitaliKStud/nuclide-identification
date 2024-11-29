@@ -1,5 +1,9 @@
 # OWN
 *.txt
+*.csv
+*.json
+.idea/
+plots/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
