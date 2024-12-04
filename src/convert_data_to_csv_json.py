@@ -9,7 +9,7 @@ def convert_data_to_csv_json():
     Combining all .txt Results and saving meta-data for every measurement
 
     """
-    all_paths = ["Data\\" + i for i in os.listdir("Data") if ".txt" in i]
+    all_paths = ["Data\\" + i for i in os.listdir("data\\measurements") if ".txt" in i]
     pattern_time = r"Realtime:([\d.]+)Livetime:([\d.]+)"
     patter_coefs = r"([+-]?\d+\.\d+E[+-]?\d+)"
 

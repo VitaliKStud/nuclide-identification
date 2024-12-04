@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "nuclide-identification"
+version = "0.0.1"
+description = "Identify Nuclides"
+authors = ["Vitali Krilov <vitali9394@yahoo.de>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+requests = "^2.32.3"
+pandas = "^2.2.3"
+seaborn = "^0.13.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
