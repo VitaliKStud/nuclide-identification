@@ -21,16 +21,28 @@ class Nuclide:
             self._check_all_nuclides()
 
     def _check_single_nuclide(self):
+        """
+        Checking if data is available for single nuclide. If not will download single nuclide-data.
+        """
+
         if not os.path.isfile(self.single_nuclide_path):
             print("No data available locally, downloading...")
             self._download_single_nuclide()
 
     def _check_all_nuclides(self):
+        """
+        Checking if data is available for all nuclides. If not will download all nuclide-data.
+        """
+
         if not os.path.isfile(self.combined_nuclides_path):
             print("No data available locally, downloading...")
             self.download_all_nuclides()
 
     def _download_single_nuclide(self):
+        """
+        Loading single nuclide data locally.
+        """
+
         if self.nuclide_id is not None:
             url = f"https://www-nds.iaea.org/relnsd/v1/data?fields=decay_rads&nuclides={self.nuclide_id}&rad_types=g"
             with requests.get(url, stream=True) as r:
