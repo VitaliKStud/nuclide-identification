@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from src.nuclide import Nuclide
 
-data = Nuclide("am241").get_nuclide_data()
+data = Nuclide("am241").get_nuclide()
 data = data.loc[data["intensity"] > 1]
 
 # Parameter definieren

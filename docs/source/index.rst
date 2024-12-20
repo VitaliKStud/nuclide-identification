@@ -10,6 +10,7 @@ Welcome to Dashboard Layout's documentation!
    :caption: Contents:
 
    measurements
+   nuclides
 
 Indices and tables
 ==================

@@ -11,7 +11,8 @@ class Measurements:
 
     def convert_data_to_csv_json(self, path="data\\measurements"):
         """
-        :param path: [str] default:="data\\measurements"
+        :param path: default:="data\\measurements"
+        :type path: str
 
         Structure of a file should be:
 
