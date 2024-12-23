@@ -11,6 +11,7 @@ Welcome to Dashboard Layout's documentation!
 
    measurements
    nuclides
+   synthetics
 
 Indices and tables
 ==================

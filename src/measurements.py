@@ -88,7 +88,8 @@ class Measurements:
         meta_data_len = len(meta_data)
         print(f"Combined {files_combined_len} files. Meta-Data for {meta_data_len} files")
 
-    def  get_all_measurements(self):
+    @staticmethod
+    def get_measurements():
         """
         Loads Measurements.
 
