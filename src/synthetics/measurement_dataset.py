@@ -7,9 +7,13 @@ class MeasurementsDataset(Dataset):
     For dataset and dataloader for pytorch. Convert the dataset, so the DataLoader can be used.
     """
 
-    def __init__(self, dataframe, group_size=8160):
+    def __init__(self, dataframe, group_size=8160, columns=None):
         self.group_size = group_size
-        self.data = torch.tensor(dataframe[["Energy", "Count"]].values, dtype=torch.float32)
+        self.columns = columns
+        for col in self.columns:
+            if dataframe[col].dtype == 'bool':
+                dataframe[col] = dataframe[col].astype(int)
+        self.data = torch.tensor(dataframe[self.columns].values, dtype=torch.float)
 
         # Ensure the dataset size is divisible by group_size
         if len(self.data) % self.group_size != 0:
@@ -28,5 +32,6 @@ class MeasurementsDataset(Dataset):
         # Sort and normalize the data
         group = group[group[:, 0].argsort()]
         group[:, 1] = (group[:, 1] - group[:, 1].min()) / (group[:, 1].max() - group[:, 1].min() + 1e-8)
+        # group[:, 2] = (group[:, 2] - group[:, 2].min()) / (group[:, 2].max() - group[:, 2].min() + 1e-8)
 
-        return group[:, 1]  # Return only normalized "Count" column
+        return group[:, 1]

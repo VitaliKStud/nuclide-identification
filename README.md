@@ -48,6 +48,10 @@ Eu-154: 123,1 keV / 1274,4 keV / 723,32 keV / 1004,8 keV / 873,18 keV / 996,29 k
 
 8160 Channels 
 
+# 2017-07-03_15-51-58_Summenspektrum.txt
+
+
+- 1246 different Measurements
 
 
 https://www-nds.iaea.org/
