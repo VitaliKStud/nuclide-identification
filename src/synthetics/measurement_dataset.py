@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 
+
 # Dataset Class
 class MeasurementsDataset(Dataset):
     """
@@ -11,7 +12,7 @@ class MeasurementsDataset(Dataset):
         self.group_size = group_size
         self.columns = columns
         for col in self.columns:
-            if dataframe[col].dtype == 'bool':
+            if dataframe[col].dtype == "bool":
                 dataframe[col] = dataframe[col].astype(int)
         self.data = torch.tensor(dataframe[self.columns].values, dtype=torch.float)
 
@@ -31,7 +32,9 @@ class MeasurementsDataset(Dataset):
 
         # Sort and normalize the data
         group = group[group[:, 0].argsort()]
-        group[:, 1] = (group[:, 1] - group[:, 1].min()) / (group[:, 1].max() - group[:, 1].min() + 1e-8)
+        group[:, 1] = (group[:, 1] - group[:, 1].min()) / (
+            group[:, 1].max() - group[:, 1].min() + 1e-8
+        )
         # group[:, 2] = (group[:, 2] - group[:, 2].min()) / (group[:, 2].max() - group[:, 2].min() + 1e-8)
 
         return group[:, 1]

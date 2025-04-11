@@ -4,6 +4,7 @@ import pandas as pd
 from src.measurements import Measurements
 from scipy.stats import skewnorm
 
+
 class SyntheticDataGenerator:
     """
     Using Variational Autoencoder to generate synthetic data.
@@ -14,13 +15,14 @@ class SyntheticDataGenerator:
         self.measurements = Measurements().get_measurements()
 
     def generate_synthetic_data(self, plot=False):
-
         id_num = np.random.randint(1, 100)
 
         unique_ids = self.measurements["ID_File"].unique()
         id_selected = unique_ids[id_num]
 
-        measurements = self.measurements.loc[self.measurements["ID_File"] == id_selected].reset_index(drop=True)
+        measurements = self.measurements.loc[
+            self.measurements["ID_File"] == id_selected
+        ].reset_index(drop=True)
 
         # Randomly determine the number of peaks
         num_peaks = np.random.randint(1, 5)
@@ -52,13 +54,21 @@ class SyntheticDataGenerator:
             intensity = np.random.randint(1000, 60001)
 
             # Variations
-            peak_width_variation = peak_width * (1 + np.random.uniform(-0.1, 0.1))  # Width variation
-            intensity_variation = intensity * (1 + np.random.uniform(-0.05, 0.05))  # Intensity variation
-            local_noise = np.random.normal(0, 0.01 * intensity_variation, size=len(energy))  # Local noise
+            peak_width_variation = peak_width * (
+                1 + np.random.uniform(-0.1, 0.1)
+            )  # Width variation
+            intensity_variation = intensity * (
+                1 + np.random.uniform(-0.05, 0.05)
+            )  # Intensity variation
+            local_noise = np.random.normal(
+                0, 0.01 * intensity_variation, size=len(energy)
+            )  # Local noise
 
             # Skewness
             skewness = np.random.uniform(-5, 5)
-            gaussian = intensity_variation * skewnorm.pdf(energy, skewness, loc=peak, scale=peak_width_variation)
+            gaussian = intensity_variation * skewnorm.pdf(
+                energy, skewness, loc=peak, scale=peak_width_variation
+            )
 
             # Add noise to the Gaussian
             # gaussian += local_noise
@@ -66,8 +76,6 @@ class SyntheticDataGenerator:
             # Aggregate Gaussian contributions
             # counts += gaussian
             # all_gaussians += gaussian
-
-
 
             # Label anomalies around the peak
             anomaly_threshold = peak_width * 5  # Define a range around the peak
@@ -86,10 +94,22 @@ class SyntheticDataGenerator:
         if plot:
             plt.figure(figsize=(12, 6))
             plt.plot(energy, counts, label="Total Counts (Synthetic Data)")
-            plt.plot(energy, measurements["Count"], label="Measurements", linestyle="--", alpha=0.7)
+            plt.plot(
+                energy,
+                measurements["Count"],
+                label="Measurements",
+                linestyle="--",
+                alpha=0.7,
+            )
             plt.yscale("log")
             plt.fill_between(energy, noise, alpha=0.3, label="Baseline Noise")
-            plt.scatter(energy[is_anomalous], counts[is_anomalous], color='red', label="Anomalous Regions", s=10)
+            plt.scatter(
+                energy[is_anomalous],
+                counts[is_anomalous],
+                color="red",
+                label="Anomalous Regions",
+                s=10,
+            )
             plt.title(f"Synthetic Spectrum with {num_peaks} Peaks")
             plt.xlabel("Energy (keV)")
             plt.ylabel("Counts")
@@ -99,10 +119,12 @@ class SyntheticDataGenerator:
             plt.close()
 
         # Return as DataFrame with clear components
-        return pd.DataFrame({
-            "Energy": energy,
-            "Count": counts,
-            "Noise": noise,
-            "Gaussian": all_gaussians,
-            "is_anomalous": is_anomalous
-        })
+        return pd.DataFrame(
+            {
+                "Energy": energy,
+                "Count": counts,
+                "Noise": noise,
+                "Gaussian": all_gaussians,
+                "is_anomalous": is_anomalous,
+            }
+        )

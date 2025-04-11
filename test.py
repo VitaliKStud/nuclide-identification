@@ -19,7 +19,9 @@ from src.synthetics.hyperparameter import Hyperparameter
 #     combined_data = pd.concat([combined_data, data], axis=0)
 # dataset = synthetics.MeasurementsDataset(combined_data, columns=["Energy", "Count", "is_anomalous"])
 
-real_data = synthetics.MeasurementsDataset(Measurements().get_measurements()[0:81600], columns=["Energy", "Count"])
+real_data = synthetics.MeasurementsDataset(
+    Measurements().get_measurements()[0:81600], columns=["Energy", "Count"]
+)
 VAE = synthetics.VAEModel(dataset=real_data, architecture="VAE")
 losses = VAE.train_vae()
 
@@ -34,15 +36,18 @@ for i in data_loader:
         else:
             reconst = model(j.to("cuda"))[0].cpu().detach().numpy()
 
-            plt.plot(np.arange(0, len(reconst)), reconst, color="red", label="reconstructed")
-            plt.plot(np.arange(0, len(reconst)), j.detach().numpy(), color="blue", label="original")
+            plt.plot(
+                np.arange(0, len(reconst)), reconst, color="red", label="reconstructed"
+            )
+            plt.plot(
+                np.arange(0, len(reconst)),
+                j.detach().numpy(),
+                color="blue",
+                label="original",
+            )
             plt.legend()
             # plt.yscale("log")
             plt.savefig(f"tmp\\{counter}.png")
             plt.close()
 
             counter += 1
-
-
-
-

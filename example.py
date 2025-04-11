@@ -132,7 +132,8 @@ def plot_spectrum(df: pd.DataFrame, semilogy=False, all_fitted_peaks=False):
     data.plot(x="energy", y="count", kind="line", figsize=(10, 6))
 
     if all_fitted_peaks:
-        plt.vlines(df["fitted_peaks_mean"],
+        plt.vlines(
+            df["fitted_peaks_mean"],
             0,
             max(data["count"]),
             color="r",

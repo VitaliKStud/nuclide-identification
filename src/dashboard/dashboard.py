@@ -10,34 +10,33 @@ from src.peaks.finder import PeakFinder
 app = Dash(__name__)
 
 # Define the layout of the app
-app.layout = html.Div([
-    html.H4('Combined Line and Bar Chart'),
-    dcc.Graph(id="graph"),
-    dcc.Dropdown(
-        id="checklist",
-        options=[{"label": f, "value": f} for f in mpi.unique_dates()],
-        multi=False
-    ),
-    html.H5("Filtered Nuclides Data"),
-    html.Div(id="output"),
-    dash_table.DataTable(id="table")  # Table for displaying filtered nuclides
-])
-
-
-@app.callback(
-    Output("output", "children"),
-    Input("checklist", "value")
+app.layout = html.Div(
+    [
+        html.H4("Combined Line and Bar Chart"),
+        dcc.Graph(id="graph"),
+        dcc.Dropdown(
+            id="checklist",
+            options=[{"label": f, "value": f} for f in mpi.unique_dates()],
+            multi=False,
+        ),
+        html.H5("Filtered Nuclides Data"),
+        html.Div(id="output"),
+        dash_table.DataTable(id="table"),  # Table for displaying filtered nuclides
+    ]
 )
+
+
+@app.callback(Output("output", "children"), Input("checklist", "value"))
 def convert_to_datetime(selected_value):
     if selected_value:
         selected_datetime = datetime.fromisoformat(selected_value)
         return f"Selected DateTime: {type(selected_datetime)}"
     return "Select a date"
 
+
 # Callback to update chart and table based on user input
 @app.callback(
-    [Output("graph", "figure"),
-     Output("table", "data")],  # Output data for the table
+    [Output("graph", "figure"), Output("table", "data")],  # Output data for the table
     [Input("checklist", "value")],
 )
 def update_combined_chart(file_id):
@@ -46,7 +45,6 @@ def update_combined_chart(file_id):
     fig = go.Figure()
     # Data for the line chart (Measurements)
     if file_id:
-
         file_data = mpi.measurement(dates=[datetime.fromisoformat(file_id)])
         file_data = file_data.sort_values(by="energy")
         peaks = PeakFinder().find_possible_nuclides(data=file_data, prominence=500)
@@ -56,7 +54,7 @@ def update_combined_chart(file_id):
                 y=file_data["count"],
                 mode="lines",
                 name=f"File: {file_id}",
-                zorder=10
+                zorder=10,
             )
         )
 
@@ -64,15 +62,18 @@ def update_combined_chart(file_id):
             filtered_nuclide = peaks[peaks["nuclide_id"] == nuclide]
             fig.add_trace(
                 go.Scatter(
-                    x=[filtered_nuclide["energy"].iloc[0], filtered_nuclide["energy"].iloc[0]],  # Vertical line at each x position
+                    x=[
+                        filtered_nuclide["energy"].iloc[0],
+                        filtered_nuclide["energy"].iloc[0],
+                    ],  # Vertical line at each x position
                     y=[0, 100000],  # Line from y=0 to y=intensity (with offset)
-                    mode='lines',
+                    mode="lines",
                     name=f"Nuclide: {nuclide}",
-                    line=dict(width=2, color='red'),
-                    zorder=0
+                    line=dict(width=2, color="red"),
+                    zorder=0,
                 )
             )
-        table_data = peaks.to_dict('records') if peaks is not None else []
+        table_data = peaks.to_dict("records") if peaks is not None else []
 
     # Layout adjustment
     fig.update_layout(
@@ -87,6 +88,7 @@ def update_combined_chart(file_id):
     # table_data = filtered_nuclides.to_dict('records') if filtered_nuclides is not None else []
 
     return fig, table_data  # Return figure and table data
+
 
 # Run the server
 if __name__ == "__main__":

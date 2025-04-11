@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class VAE(nn.Module):
     """
     Variational Autoencoder to generate synthetic data.
@@ -13,7 +14,7 @@ class VAE(nn.Module):
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, latent_dim),
-            nn.ReLU()
+            nn.ReLU(),
         )
         self.mean_layer = nn.Linear(latent_dim, latent_dim)
         self.logvar_layer = nn.Linear(latent_dim, latent_dim)
@@ -21,7 +22,7 @@ class VAE(nn.Module):
             nn.Linear(latent_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, input_dim),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def encode(self, x):

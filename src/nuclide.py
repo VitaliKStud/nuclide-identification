@@ -14,13 +14,10 @@ class Nuclide:
     """
 
     def __init__(
-            self,
-            nuclide_id: str = None,
-            intensity_filter=None,
-            unc_en_not_none=False
+        self, nuclide_id: str = None, intensity_filter=None, unc_en_not_none=False
     ):
         self.nuclide_id = nuclide_id
-        self.single_nuclide_path = f'{PATH.NUCLIDES}{self.nuclide_id}.csv'
+        self.single_nuclide_path = f"{PATH.NUCLIDES}{self.nuclide_id}.csv"
         self.all_nuclides_path = f"{PATH.OUTPUT}ground_state_all_nuclides.csv"
         self.combined_nuclides_path = f"{PATH.OUTPUT}combined_nuclides.csv"
         if nuclide_id is not None:
@@ -48,14 +45,11 @@ class Nuclide:
             logging.info("No data available locally, downloading...")
             self.download_all_nuclides()
 
-
-
-    def _filter_nuclides(
-            self,
-            data
-    ):
+    def _filter_nuclides(self, data):
         if self.intensity_filter is not None:
-            data = data.loc[data["intensity"] > self.intensity_filter].reset_index(drop=True)
+            data = data.loc[data["intensity"] > self.intensity_filter].reset_index(
+                drop=True
+            )
         if self.unc_en_not_none is True:
             data = data.loc[~data["unc_en"].isna()].reset_index(drop=True)
         return data
@@ -94,7 +88,11 @@ class Nuclide:
         sigma = np.sqrt(1)
         mu = 0
         for unique_energy in unique_energies:
-            s = 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp(- (bins - mu) ** 2 / (2 * sigma ** 2))
+            s = (
+                1
+                / (sigma * np.sqrt(2 * np.pi))
+                * np.exp(-((bins - mu) ** 2) / (2 * sigma**2))
+            )
             # distribution_data = pd.DataFrame([s, bins + unique_energy]).T.rename(columns={0: "Count", 1: "Energy"})
 
         return s

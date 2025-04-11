@@ -21,10 +21,11 @@ found_peaks, peakind = PeakFinder().find_possible_nuclides(
 fig = go.Figure()
 fig.add_trace(
     go.Scatter(
-        x=measurement_example["energy"], y=measurement_example["count"],
+        x=measurement_example["energy"],
+        y=measurement_example["count"],
         mode="lines",
         name=f"File",
-        zorder=10
+        zorder=10,
     )
 )
 
@@ -35,10 +36,10 @@ for nuclide in found_peaks["nuclide_id"].unique():
             x=[filtered_nuclide["energy"].iloc[0], filtered_nuclide["energy"].iloc[0]],
             # Vertical line at each x position
             y=[0, 100000],  # Line from y=0 to y=intensity (with offset)
-            mode='lines',
+            mode="lines",
             name=f"Nuclide: {nuclide}",
-            line=dict(width=2, color='red'),
-            zorder=0
+            line=dict(width=2, color="red"),
+            zorder=0,
         )
     )
 
@@ -49,15 +50,12 @@ for ind_peak in peakind:
             x=[test["energy"], test["energy"]],
             # Vertical line at each x position
             y=[0, 100000],  # Line from y=0 to y=intensity (with offset)
-            mode='lines',
+            mode="lines",
             name=f"Nuclide: {ind_peak}",
-            line=dict(width=2, color='black'),
-            zorder=0
+            line=dict(width=2, color="black"),
+            zorder=0,
         )
     )
-
-
-
 
 
 fig.show()
