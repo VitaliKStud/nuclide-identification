@@ -30,10 +30,12 @@ def gaussian(x, a, mu, sigma):
     array-like or float
         The value(s) of the Gaussian function at x.
     """
-    return a * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+    return a * np.exp(-((x - mu) ** 2) / (2 * sigma**2))
 
 
-def fit_gaussian(data: pd.DataFrame, peaks: np.ndarray, properties: dict, polynomial: callable) -> np.ndarray:
+def fit_gaussian(
+    data: pd.DataFrame, peaks: np.ndarray, properties: dict, polynomial: callable
+) -> np.ndarray:
     """
     Fits Gaussian functions to the identified peaks in the data and applies the polynomial to the fitted peaks.
 
@@ -64,7 +66,9 @@ def fit_gaussian(data: pd.DataFrame, peaks: np.ndarray, properties: dict, polyno
     fitted_peak_mean = []
     fitted_peak_std = []
 
-    for peak, left_base, right_base in zip(peaks, properties['left_bases'], properties['right_bases']):
+    for peak, left_base, right_base in zip(
+        peaks, properties["left_bases"], properties["right_bases"]
+    ):
         try:
             x = np.arange(left_base, right_base)
             # fallback to +-5 if the range is too small to fit or too large to be realistic
@@ -72,7 +76,7 @@ def fit_gaussian(data: pd.DataFrame, peaks: np.ndarray, properties: dict, polyno
                 x = np.arange(peak - 5, peak + 5)
             elif len(x) > 30:
                 x = np.arange(peak - 5, peak + 5)
-            y = data['count_cleaned'].iloc[x]
+            y = data["count_cleaned"].iloc[x]
             popt, *_ = curve_fit(gaussian, x, y, p0=[y.max(), x.mean(), 1], maxfev=2000)
             fitted_peak_mean.append(np.abs(popt[1]))
             fitted_peak_std.append(np.abs(popt[2]))
@@ -83,7 +87,9 @@ def fit_gaussian(data: pd.DataFrame, peaks: np.ndarray, properties: dict, polyno
     return polynomial(fitted_peaks)
 
 
-def identify_background(data: pd.DataFrame, window: int = 5, scale: float = 1.5) -> np.ndarray:
+def identify_background(
+    data: pd.DataFrame, window: int = 5, scale: float = 1.5
+) -> np.ndarray:
     """
     Identify the background of a spectrum by analyzing the slopes and applying a moving average.
     Parameters:
@@ -101,40 +107,59 @@ def identify_background(data: pd.DataFrame, window: int = 5, scale: float = 1.5)
     np.ndarray
         The interpolated background values.
     """
-    counts = data['count'].values
+    counts = data["count"].values
     slopes = np.abs(np.diff(counts))
-    moving_avg = np.convolve(slopes, np.ones(window) / window, mode='same')
+    moving_avg = np.convolve(slopes, np.ones(window) / window, mode="same")
     threshold = np.mean(moving_avg) * scale
     background_mask = moving_avg < threshold
-    background_mask = np.append(background_mask, True)  # Ensure the mask has the same length as counts
-    background = np.interp(np.arange(len(counts)), np.arange(len(counts))[background_mask], counts[background_mask])
+    background_mask = np.append(
+        background_mask, True
+    )  # Ensure the mask has the same length as counts
+    background = np.interp(
+        np.arange(len(counts)),
+        np.arange(len(counts))[background_mask],
+        counts[background_mask],
+    )
     return background
 
 
 def plot_spectrum(df: pd.DataFrame, semilogy=False, all_fitted_peaks=False):
     """Plot a gamma spectrum from a DataFrame."""
-    dates = df['filename'][0]
+    dates = df["filename"][0]
     data = mpi.measurement([dates])
-    data['background'] = identify_background(data)
+    data["background"] = identify_background(data)
     print(data.shape)
-    data.plot(x='energy', y='count', kind='line', figsize=(10, 6))
+    data.plot(x="energy", y="count", kind="line", figsize=(10, 6))
 
     if all_fitted_peaks:
-        plt.vlines(df['fitted_peaks_mean'], 0, max(data['count']), color='r', linestyles='dashed',
-                   label='Fitted peaks')
-    colors = plt.get_cmap("hsv")(np.linspace(0.2, 0.8, len(df['identified_peaks'][0])))
-    for i, (identified_peak, isotope) in enumerate(zip(df['identified_peaks'][0], df['identified_isotopes'][0])):
-        plt.vlines(identified_peak, -100, max(data['count']) / 10, color=colors[i], alpha=0.5,
-                   label=f'ISOTOPE: {isotope}\nENERGY: {round(identified_peak, 2)}')
+        plt.vlines(df["fitted_peaks_mean"],
+            0,
+            max(data["count"]),
+            color="r",
+            linestyles="dashed",
+            label="Fitted peaks",
+        )
+    colors = plt.get_cmap("hsv")(np.linspace(0.2, 0.8, len(df["identified_peaks"][0])))
+    for i, (identified_peak, isotope) in enumerate(
+        zip(df["identified_peaks"][0], df["identified_isotopes"][0])
+    ):
+        plt.vlines(
+            identified_peak,
+            -100,
+            max(data["count"]) / 10,
+            color=colors[i],
+            alpha=0.5,
+            label=f"ISOTOPE: {isotope}\nENERGY: {round(identified_peak, 2)}",
+        )
 
     if semilogy:
-        plt.semilogy('log')
+        plt.semilogy("log")
 
-    plt.plot(data['energy'], data['background'], color='r', label='Background')
-    plt.title(f'Spectrum: {df["filename"]}')
+    plt.plot(data["energy"], data["background"], color="r", label="Background")
+    plt.title(f"Spectrum: {df['filename']}")
     plt.legend()
-    plt.xlabel('Energy (keV)')
-    plt.ylabel('Counts')
+    plt.xlabel("Energy (keV)")
+    plt.ylabel("Counts")
     plt.show()
 
 
@@ -163,8 +188,8 @@ def calculate_intensity_cutoff(data: pd.DataFrame, snr_threshold: float = 3.0) -
     float
         The calculated intensity cutoff.
     """
-    signal_max = data['counts'].max()
-    background_mean = data['background'].mean()
+    signal_max = data["counts"].max()
+    background_mean = data["background"].mean()
     noise = signal_max - background_mean
     snr = signal_max / noise
 
@@ -174,52 +199,61 @@ def calculate_intensity_cutoff(data: pd.DataFrame, snr_threshold: float = 3.0) -
         return snr_threshold * noise / signal_max
 
 
-def identify_isotopes(fitted_peaks: unumpy.uarray, tolerance: float = 0.5, matching_ratio: float = 1 / 5) -> tuple:
+def identify_isotopes(
+    fitted_peaks: unumpy.uarray, tolerance: float = 0.5, matching_ratio: float = 1 / 5
+) -> tuple:
     """
-        Identify isotopes based on fitted peak energies.
-        This function compares the provided fitted peak energies with known isotope energies
-        and identifies potential isotopes based on a confidence threshold and matching ratio.
-        Parameters:
-        -----------
-        fitted_peaks : unumpy.uarray
-            Array of fitted peak energies with uncertainties.
-        tolerance : float, optional
-            Confidence threshold for matching peaks to isotope energies (default is 0.5).
-        matching_ratio : float, optional
-            Minimum ratio of matched peaks to isotope energies required to identify an isotope (default is 0.5).
-        verbose : bool, optional
-            If True, prints detailed matching information (default is False).
-        **kwargs : dict
-            Additional keyword arguments (not used in this function).
-        Returns:
-        --------
-        identified_isotopes : tuple
-            List of identified isotopes.
-        confidences : list
-            List of confidence values for each matched peak.
-        percentage_matched : list
-            List of percentages of matched peaks for each identified isotope.
+    Identify isotopes based on fitted peak energies.
+    This function compares the provided fitted peak energies with known isotope energies
+    and identifies potential isotopes based on a confidence threshold and matching ratio.
+    Parameters:
+    -----------
+    fitted_peaks : unumpy.uarray
+        Array of fitted peak energies with uncertainties.
+    tolerance : float, optional
+        Confidence threshold for matching peaks to isotope energies (default is 0.5).
+    matching_ratio : float, optional
+        Minimum ratio of matched peaks to isotope energies required to identify an isotope (default is 0.5).
+    verbose : bool, optional
+        If True, prints detailed matching information (default is False).
+    **kwargs : dict
+        Additional keyword arguments (not used in this function).
+    Returns:
+    --------
+    identified_isotopes : tuple
+        List of identified isotopes.
+    confidences : list
+        List of confidence values for each matched peak.
+    percentage_matched : list
+        List of percentages of matched peaks for each identified isotope.
     """
 
-    known_isotopes = npi.nuclides(["cs137",
-                                   "co60",
-                                   "i131",
-                                   "tc99m",
-                                   "ra226",
-                                   "th232",
-                                   "u238",
-                                   "k40",
-                                   "am241",
-                                   "na22",
-                                   "eu152",
-                                   "eu154"], intensity=5)
+    known_isotopes = npi.nuclides(
+        [
+            "cs137",
+            "co60",
+            "i131",
+            "tc99m",
+            "ra226",
+            "th232",
+            "u238",
+            "k40",
+            "am241",
+            "na22",
+            "eu152",
+            "eu154",
+        ],
+        intensity=5,
+    )
     identified_isotopes = []
     peak_confidences = []
     isotope_confidences = []
     percentage_matched = []
     identified_peaks = []
 
-    for peak, std in zip(unumpy.nominal_values(fitted_peaks), unumpy.std_devs(fitted_peaks)):
+    for peak, std in zip(
+        unumpy.nominal_values(fitted_peaks), unumpy.std_devs(fitted_peaks)
+    ):
         for nuclide_id, nuclide_group in known_isotopes.groupby("nuclide_id"):
             matched = []
             nuclide_list = nuclide_group["energy"].to_list()
@@ -238,11 +272,22 @@ def identify_isotopes(fitted_peaks: unumpy.uarray, tolerance: float = 0.5, match
                 percentage_matched.append(len(matched) / len(nuclide_list))
                 identified_peaks.append(peak)
 
-    return identified_isotopes, identified_peaks, isotope_confidences, percentage_matched
+    return (
+        identified_isotopes,
+        identified_peaks,
+        isotope_confidences,
+        percentage_matched,
+    )
 
 
-def process_spectrum(dates: list, prominence: int = 1000, width: int = None, rel_height: float = None,
-                     tolerance: float = 0.5, **kwargs) -> pd.DataFrame:
+def process_spectrum(
+    dates: list,
+    prominence: int = 1000,
+    width: int = None,
+    rel_height: float = None,
+    tolerance: float = 0.5,
+    **kwargs,
+) -> pd.DataFrame:
     """
     Processes a gamma spectrum file and identifies peaks.
     This function reads a gamma spectrum data file, processes the data to identify peaks,
@@ -291,31 +336,44 @@ def process_spectrum(dates: list, prominence: int = 1000, width: int = None, rel
     data = mpi.measurement(dates)
     meta = mpi.meta_data(dates)
 
-    polynomial = lambda x: meta["coef_1"][0] + meta["coef_2"][0] * x + meta["coef_3"][0] * x ** 2 + meta["coef_4"][
-        0] * x ** 3
+    polynomial = (
+        lambda x: meta["coef_1"][0]
+        + meta["coef_2"][0] * x
+        + meta["coef_3"][0] * x**2
+        + meta["coef_4"][0] * x**3
+    )
 
     background = identify_background(data)
-    data['count_cleaned'] = data['count'] - background
-    peaks, properties = find_peaks(data['count_cleaned'], prominence=prominence, width=width, rel_height=rel_height,
-                                   **kwargs)
+    data["count_cleaned"] = data["count"] - background
+    peaks, properties = find_peaks(
+        data["count_cleaned"],
+        prominence=prominence,
+        width=width,
+        rel_height=rel_height,
+        **kwargs,
+    )
     fitted_peaks = fit_gaussian(data, peaks, properties, polynomial=polynomial)
-    identified_isotopes, identified_peaks, confidences, matched = identify_isotopes(fitted_peaks, tolerance=tolerance)
+    identified_isotopes, identified_peaks, confidences, matched = identify_isotopes(
+        fitted_peaks, tolerance=tolerance
+    )
     total_confidences = [c * p for c, p in zip(confidences, matched)]
-    return pd.DataFrame({
-        'filename': dates,
-        'data': [data],
-        'peaks': [peaks],
-        'properties': [properties],
-        'calculated_polynomial': [polynomial(peaks)],
-        'fitted_peaks': [fitted_peaks],
-        'fitted_peaks_mean': [unumpy.nominal_values(fitted_peaks)],
-        'fitted_peaks_std': [unumpy.std_devs(fitted_peaks)],
-        'identified_isotopes': [identified_isotopes],
-        'identified_peaks': [identified_peaks],
-        'confidences': [confidences],
-        'matched': [matched],
-        'total_confidences': [total_confidences]
-    })
+    return pd.DataFrame(
+        {
+            "filename": dates,
+            "data": [data],
+            "peaks": [peaks],
+            "properties": [properties],
+            "calculated_polynomial": [polynomial(peaks)],
+            "fitted_peaks": [fitted_peaks],
+            "fitted_peaks_mean": [unumpy.nominal_values(fitted_peaks)],
+            "fitted_peaks_std": [unumpy.std_devs(fitted_peaks)],
+            "identified_isotopes": [identified_isotopes],
+            "identified_peaks": [identified_peaks],
+            "confidences": [confidences],
+            "matched": [matched],
+            "total_confidences": [total_confidences],
+        }
+    )
 
 
 result = process_spectrum(["2017-04-13 13:36:00"], prominence=1500)

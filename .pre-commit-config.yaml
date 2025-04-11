@@ -1,12 +1,17 @@
--   repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-    -   id: black
--   repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
-    hooks:
-    -   id: flake8
--   repo: https://github.com/PyCQA/isort
-    rev: v5.10.1
-    hooks:
-    -   id: isort
+repos:
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  # Ruff version.
+  rev: v0.9.6
+  hooks:
+    # Run the linter.
+    - id: ruff
+      types_or: [ python, pyi ]
+      args: [ format ]
+    # Run the formatter.
+    - id: ruff-format
+      types_or: [ python, pyi ]
+- repo: https://github.com/RobertCraigie/pyright-python
+  rev: v1.1.394
+  hooks:
+    # Run the type checker.
+    - id: pyright
