@@ -8,7 +8,7 @@ def plot_count_energy_heatmap():
     data["Energy"] = data["Energy"].round(2)
     filtered_data = data.loc[(data["Energy"] > 0) & (data["Count"] > 0)]
 
-    fig = plt.figure(figsize=(15, 10))
+    plt.figure(figsize=(15, 10))
     ax = sns.histplot(
         filtered_data,
         x="Energy",

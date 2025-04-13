@@ -83,7 +83,7 @@ class Download:
         """
 
         url = (
-            f"https://www-nds.iaea.org/relnsd/v1/data?fields=ground_states&nuclides=all"
+            "https://www-nds.iaea.org/relnsd/v1/data?fields=ground_states&nuclides=all"
         )
         with requests.get(url, stream=True) as r:
             with open(self.ground_state_path, "wb") as f:

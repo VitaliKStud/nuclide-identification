@@ -5,8 +5,6 @@ from src.synthetics.hyperparameter import Hyperparameter
 import matplotlib.pyplot as plt
 from src.synthetics.vae import VAE
 from torch.utils.data import DataLoader
-from scipy.stats import norm
-import numpy as np
 from src.synthetics.cnn_vae import CNNVAe
 
 
@@ -86,7 +84,7 @@ class VAEModel:
     def visualize_comparison(
         self, original, reconstructed, epoch, loss, name="comparison"
     ):
-        diff = reconstructed - original
+        reconstructed - original
         plt.figure(figsize=(10, 5))
         plt.plot(original, label="Original", linestyle="--", alpha=0.7)
         plt.plot(reconstructed, label="Reconstructed", alpha=0.7)

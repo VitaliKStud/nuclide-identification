@@ -4,6 +4,8 @@ repos:
     hooks:
       - id: ruff
         types_or: [python, pyi]
-        args: [format]
+        hooks:
+          - id: ruff  # only for linting
+          - id: ruff-format  # only for formatting
       - id: ruff-format
         types_or: [python, pyi]

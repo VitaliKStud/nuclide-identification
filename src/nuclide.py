@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import requests
 import numpy as np
 from config import PATH
 import logging
@@ -81,7 +80,6 @@ class Nuclide:
 
     def get_nuclide_distribution(self, step: float = 0.29):
         data = self.get_nuclide()
-        distribution_data = None
 
         unique_energies = data["energy"].unique()
         bins = np.arange(-5, 5, 0.29)
@@ -101,7 +99,7 @@ class Nuclide:
 
     def plot_peaks(self, filter_intensity: float = 0.0, save: bool = False):
         data = pd.read_csv(self.single_nuclide_path)
-        fig = plt.figure(figsize=(15, 10))
+        plt.figure(figsize=(15, 10))
         data = data.loc[data["intensity"] >= filter_intensity]
         data["energy"] = data["energy"].round(2)
         sns.barplot(data=data, x="energy", y="intensity", fill=False, color="black")

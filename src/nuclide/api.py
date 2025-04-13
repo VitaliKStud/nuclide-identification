@@ -11,26 +11,24 @@ def unique_nuclides():
 def nuclides(nuclide_ids="all", intensity=0):
     if len(nuclide_ids) > 1 and nuclide_ids != "all":
         nuclide_ids = tuple(nuc_id for nuc_id in nuclide_ids)
-        print(nuclide_ids)
         query = f"""
         SELECT 
         "nuclide_id", "energy", "intensity", "d_z", "d_n"
         FROM nuclide.nuclide
         WHERE "nuclide_id" IN {nuclide_ids}
-        AND"intensity" IS NOT NULL 
-        AND "unc_en" IS NOT NULL
+        AND "intensity" IS NOT NULL 
+--         AND "unc_en" IS NOT NULL
         AND "intensity" > {intensity}
         """
     elif len(nuclide_ids) == 1 and nuclide_ids != "all":
         nuclide_ids = tuple(nuc_id for nuc_id in nuclide_ids)
-        print(nuclide_ids)
         query = f"""
         SELECT 
         "nuclide_id", "energy", "intensity", "d_z", "d_n"
         FROM nuclide.nuclide
         WHERE "nuclide_id" = '{nuclide_ids[0]}'
         AND"intensity" IS NOT NULL 
-        AND "unc_en" IS NOT NULL
+--         AND "unc_en" IS NOT NULL
         AND "intensity" > {intensity}
         """
     elif nuclide_ids == "all":
@@ -39,7 +37,7 @@ def nuclides(nuclide_ids="all", intensity=0):
         "nuclide_id", "energy", "intensity", "d_z", "d_n"
         FROM nuclide.nuclide
         WHERE "intensity" IS NOT NULL 
-        AND "unc_en" IS NOT NULL
+--         AND "unc_en" IS NOT NULL
         AND "intensity" > {intensity}
         """
     else:
@@ -48,7 +46,7 @@ def nuclides(nuclide_ids="all", intensity=0):
 
 
 def nuclides_max_intensity():
-    query = f"""
+    query = """
     SELECT DISTINCT ON ("nuclide_id") 
         "nuclide_id", 
         "energy", 

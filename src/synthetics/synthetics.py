@@ -35,7 +35,7 @@ class SyntheticDataGenerator:
         measurements["LogCount"] = np.log10(measurements["Count"]).round(3)
 
         log_reg = np.polyfit(energy, measurements["LogCount"], 20)
-        model = np.polyfit(energy, measurements["Count"], 10)
+        np.polyfit(energy, measurements["Count"], 10)
         counts = 10 ** (np.polyval(log_reg, energy))
         measurements["pred"] = counts
 
@@ -60,13 +60,13 @@ class SyntheticDataGenerator:
             intensity_variation = intensity * (
                 1 + np.random.uniform(-0.05, 0.05)
             )  # Intensity variation
-            local_noise = np.random.normal(
+            np.random.normal(
                 0, 0.01 * intensity_variation, size=len(energy)
             )  # Local noise
 
             # Skewness
             skewness = np.random.uniform(-5, 5)
-            gaussian = intensity_variation * skewnorm.pdf(
+            intensity_variation * skewnorm.pdf(
                 energy, skewness, loc=peak, scale=peak_width_variation
             )
 
@@ -82,8 +82,8 @@ class SyntheticDataGenerator:
             is_anomalous |= np.abs(energy - peak) <= anomaly_threshold
 
         # Add swing noise (cosine wave)
-        swing_amplitude = np.random.randint(100, 200)
-        swing_frequency = 4 / (2 * (max(energy) - min(energy)))
+        np.random.randint(100, 200)
+        4 / (2 * (max(energy) - min(energy)))
         # swings = swing_amplitude * np.cos(2 * np.pi * swing_frequency * energy)
         # counts += swings
 

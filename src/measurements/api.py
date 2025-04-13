@@ -1,6 +1,5 @@
 import pandas as pd
 from config import DB
-import logging
 
 
 def unique_dates():
@@ -16,7 +15,11 @@ def measurement(dates):
         query = f"SELECT * FROM measurements.measurements WHERE datetime = '{timestamps_str[0]}'"
     else:
         query = f'SELECT * FROM measurements.measurements WHERE "datetime" IN {timestamps_str}'
-    return pd.read_sql(sql=query, con=DB.ENGINE)
+    return (
+        pd.read_sql(sql=query, con=DB.ENGINE)
+        .sort_values(by="energy")
+        .reset_index(drop=True)
+    )
 
 
 def meta_data(dates):

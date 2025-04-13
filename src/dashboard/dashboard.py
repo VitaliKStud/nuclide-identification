@@ -2,7 +2,6 @@ from dash import Dash, dcc, html, Input, Output
 import plotly.graph_objects as go
 import dash_table
 import src.measurements.api as mpi
-import src.nuclide.api as npi
 from datetime import datetime
 from src.peaks.finder import PeakFinder
 

@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import re
-import json
 from config import DB, PATH
 from sqlalchemy import text
 import logging
@@ -109,11 +108,11 @@ class Measurements:
         )
         meta_data_df.drop(columns=["coefficients"], inplace=True)
         meta_data_df = meta_data_df.rename(columns={"index": "datetime"})
-        logging.info(f"Writing meta_data to Database")
+        logging.info("Writing meta_data to Database")
         meta_data_df.to_sql(
             "meta_data", DB.ENGINE, if_exists="replace", index=False, schema="meta"
         )
-        logging.info(f"Wrote meta_data to Database")
+        logging.info("Wrote meta_data to Database")
 
         meta_data_df.to_csv(f"{PATH.OUTPUT}meta_data.csv", index=False)
         logging.info(f"Saved {PATH.OUTPUT}meta_data.csv")
