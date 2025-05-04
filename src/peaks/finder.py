@@ -7,6 +7,10 @@ from scipy.optimize import curve_fit, OptimizeWarning
 from uncertainties import unumpy
 import warnings
 from scipy.stats import norm
+from config import DB
+import logging
+from sqlalchemy import text
+from scipy.interpolate import interp1d
 
 
 class PeakFinder:
@@ -15,11 +19,14 @@ class PeakFinder:
         selected_date,
         nuclides,
         nuclides_intensity,
+        interpolate_energy=True,
         prominence=1000,
         width=None,
         rel_height=None,
         matching_ratio=1 / 15,
         tolerance=0.5,
+        schema="processed_measurements",
+        step_size=0.34507313512321336,
         **kwargs,
     ):
         self.selected_date = selected_date
@@ -27,6 +34,9 @@ class PeakFinder:
         self.meta = mpi.meta_data([selected_date])
         self.polynomial = self.__polynomial_f()
         self.isotopes = npi.nuclides(nuclides, nuclides_intensity)
+        logging.warning(
+            f"Isotopes: {self.isotopes['nuclide_id'].unique()}, {len(self.isotopes['nuclide_id'].unique())}"
+        )
         self.identified_isotopes = []
         self.peak_confidences = []
         self.isotope_confidences = []
@@ -38,6 +48,9 @@ class PeakFinder:
         self.rel_height = rel_height
         self.matching_ratio = matching_ratio
         self.tolerance = tolerance
+        self.schema = schema
+        self.step_size = step_size
+        self.interpolate_energy = interpolate_energy
         self.kwargs = kwargs
 
     def __fit_gaussian(self, peaks: np.ndarray, properties: dict) -> np.ndarray:
@@ -218,6 +231,59 @@ class PeakFinder:
             + self.meta["coef_4"][0] * x**3
         )
 
+    def __safe_processed_spectrum(self):
+        self.data[
+            [
+                "energy",
+                "background",
+                "total_confidence",
+                "matched",
+                "confidence",
+                "identified_peak",
+            ]
+        ] = self.data[
+            [
+                "energy",
+                "background",
+                "total_confidence",
+                "matched",
+                "confidence",
+                "identified_peak",
+            ]
+        ].round(2)
+        query = text("""
+                     DELETE
+                     FROM measurements.processed_measurements
+                     WHERE "datetime" = :selected_date;
+                     """)
+        with DB.ENGINE.connect() as connection:
+            try:
+                with connection.begin():
+                    connection.execute(query, {"selected_date": self.selected_date})
+                    logging.warning(self.selected_date)
+            except Exception as e:
+                logging.warning(f"Deletion failed: {e}")
+        self.data.to_sql(
+            self.schema,
+            DB.ENGINE,
+            if_exists="append",
+            index=False,
+            schema="measurements",
+        )
+
+    def __interpolate_spectrum(self, energy_original, counts_original):
+        energy_max = self.step_size * 8160
+        energy_axis = np.arange(0, energy_max, self.step_size)
+        logging.warning(f"Max Interpolation Value for Energy: {energy_max}")
+        f = interp1d(
+            energy_original,
+            counts_original,
+            kind="nearest",
+            bounds_error=False,
+            fill_value=0,
+        )
+        return f(energy_axis), energy_axis
+
     def process_spectrum(
         self,
         return_detailed_view: bool = False,
@@ -267,6 +333,7 @@ class PeakFinder:
         Overall, the time complexity is approximately O(n + m + p).
         """
 
+        self.data = self.data.sort_values(by="energy").reset_index(drop=True)
         self.data["background"] = self.__identify_background()
         self.data["counts_cleaned"] = self.data["count"] - self.data["background"]
         peaks_idx, properties = find_peaks(
@@ -286,26 +353,42 @@ class PeakFinder:
             c * p for c, p in zip(self.isotope_confidences, self.percentage_matched)
         ]
 
-        if return_detailed_view is False:
-            data = self.data.drop(columns=["counts_cleaned"])
-            data["peak"] = False
-            data["total_confidence"] = 0.0
-            data["matched"] = 0.0
-            data["confidence"] = 0.0
-            data["identified_peak"] = 0.0
-            data["identified_isotope"] = ""
+        if self.interpolate_energy is True:
+            interpolated_counts, energy_axis = self.__interpolate_spectrum(
+                self.data["energy"].values,
+                self.data["count"].values,
+            )
+            self.data["energy"] = energy_axis
+            self.data["count"] = interpolated_counts
 
-            data.loc[self.identified_peaks_idx, "peak"] = True
-            data.loc[self.identified_peaks_idx, "total_confidence"] = total_confidences
-            data.loc[self.identified_peaks_idx, "matched"] = self.percentage_matched
-            data.loc[self.identified_peaks_idx, "confidence"] = self.isotope_confidences
-            data.loc[self.identified_peaks_idx, "identified_peak"] = (
+        if return_detailed_view is False:
+            self.data = self.data.drop(columns=["counts_cleaned"])
+            self.data["peak"] = False
+            self.data["interpolated"] = self.interpolate_energy
+            self.data["total_confidence"] = 0.0
+            self.data["matched"] = 0.0
+            self.data["confidence"] = 0.0
+            self.data["identified_peak"] = 0.0
+            self.data["identified_isotope"] = ""
+
+            self.data.loc[self.identified_peaks_idx, "peak"] = True
+            self.data.loc[self.identified_peaks_idx, "total_confidence"] = (
+                total_confidences
+            )
+            self.data.loc[self.identified_peaks_idx, "matched"] = (
+                self.percentage_matched
+            )
+            self.data.loc[self.identified_peaks_idx, "confidence"] = (
+                self.isotope_confidences
+            )
+            self.data.loc[self.identified_peaks_idx, "identified_peak"] = (
                 self.identified_peaks
             )
-            data.loc[self.identified_peaks_idx, "identified_isotope"] = (
+            self.data.loc[self.identified_peaks_idx, "identified_isotope"] = (
                 self.identified_isotopes
             )
-            return data
+            self.__safe_processed_spectrum()
+            return self.data
 
         else:
             return pd.DataFrame(

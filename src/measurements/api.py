@@ -8,7 +8,7 @@ def unique_dates():
     )["datetime"].to_list()
 
 
-def measurement(dates):
+def measurement(dates: list):
     dates = [pd.Timestamp(t) for t in dates]
     timestamps_str = tuple(t.strftime("%Y-%m-%d %H:%M:%S") for t in dates)
     if len(timestamps_str) == 1:
@@ -17,7 +17,7 @@ def measurement(dates):
         query = f'SELECT * FROM measurements.measurements WHERE "datetime" IN {timestamps_str}'
     return (
         pd.read_sql(sql=query, con=DB.ENGINE)
-        .sort_values(by="energy")
+        .sort_values(by=["energy", "datetime"])
         .reset_index(drop=True)
     )
 

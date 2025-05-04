@@ -7,7 +7,6 @@ services:
     image: postgres
     restart: always
     container_name: postgres_db
-    # set shared memory limit when using docker-compose
     shm_size: 5096mb
     environment:
       POSTGRES_USER: admin
@@ -25,3 +24,26 @@ services:
     restart: always
     ports:
       - 8080:8080
+
+  mlflow-server:
+    image: ghcr.io/mlflow/mlflow:v2.12.1
+    container_name: mlflow-server
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://0.0.0.0:5000
+      - MLFLOW_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - ./mlruns:/mlflow/artifacts
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: src/dashboard/Dockerfile
+    container_name: dashboard
+    volumes:
+      - ./src:/usr/src/app/src
+    ports:
+      - "8051:8051"
+
