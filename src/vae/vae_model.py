@@ -3,13 +3,10 @@ import mlflow.pytorch
 from tqdm import tqdm
 import torch.nn.functional as F
 import torch
-
-# from src.synthetics.hyperparameter import Hyperparameter
 import matplotlib.pyplot as plt
-from src.synthetics.vae import VAE
+from src.vae.vae import VAE
 from torch.utils.data import DataLoader
-from src.synthetics.cnn_vae import CNNVAe
-from src.synthetics.measurement_dataset import MeasurementsDataset
+from src.vae.measurement_dataset import MeasurementsDataset
 from config.loader import load_config
 
 
