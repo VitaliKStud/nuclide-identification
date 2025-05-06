@@ -42,8 +42,11 @@ services:
       context: .
       dockerfile: src/dashboard/Dockerfile
     container_name: dashboard
+    environment:
+      - CONFIG_FILE=config_service.yaml
     volumes:
       - ./src:/usr/src/app/src
+      - ./config:/usr/src/app/config
     ports:
       - "8051:8051"
 

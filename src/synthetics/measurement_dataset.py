@@ -41,13 +41,8 @@ class MeasurementsDataset(Dataset):
         # Sort and normalize the data using the global min/max
         group = group[group[:, 0].argsort()]  # Sort by energy (first column)
 
-        # Normalize the 'energy' and 'count' columns over the entire dataset range
-        group[:, 0] = (group[:, 0] - self.data_min[0]) / (
-            self.data_max[0] - self.data_min[0] + 1e-8
-        )
-
         group[:, 1] = (group[:, 1] - self.data_min[1]) / (
             self.data_max[1] - self.data_min[1] + 1e-8
         )
 
-        return group, str(group_datetime[0])
+        return group[:, 1], str(group_datetime[0])

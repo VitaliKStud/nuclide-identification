@@ -12,19 +12,19 @@ import requests
 import logging
 import os
 import pandas as pd
-
-from config import PATH, DB
+import src.nuclide.api as npi
 
 logging.getLogger().setLevel(logging.INFO)
 
 
-class Download:
+class Download(npi.API):
     def __init__(self):
-        self.ground_state_path = f"{PATH.OUTPUT}ground_state.csv"
-        if not os.path.exists(PATH.OUTPUT):
-            os.makedirs(PATH.OUTPUT)
-        if not os.path.exists(PATH.NUCLIDES):
-            os.makedirs(PATH.NUCLIDES)
+        super().__init__()
+        self.ground_state_path = f"{self.path_output}ground_state.csv"
+        if not os.path.exists(self.path_output):
+            os.makedirs(self.path_output)
+        if not os.path.exists(self.path_nuclides):
+            os.makedirs(self.path_nuclides)
 
     def get_ground_state(self, compromised=False):
         """
@@ -48,7 +48,7 @@ class Download:
             ground_state = ground_state[["nuclide_id", "z", "n", "symbol"]]
         ground_state.to_sql(
             "ground_state",
-            DB.ENGINE,
+            self.engine,
             if_exists="replace",
             index=False,
             schema="nuclide",
@@ -64,11 +64,11 @@ class Download:
         with requests.get(url, stream=True) as r:
             logging.info(f"LOADING: {nuclide_id}")
             if len(r.content) > 2:
-                with open(f"{PATH.NUCLIDES}{nuclide_id}.csv", "wb") as f:
+                with open(f"{self.path_nuclides}{nuclide_id}.csv", "wb") as f:
                     for chunk in r.iter_content():
                         f.write(chunk)
                     logging.info(
-                        f"{nuclide_id} loaded and saved to {PATH.NUCLIDES}{nuclide_id}.csv"
+                        f"{nuclide_id} loaded and saved to {self.path_nuclides}{nuclide_id}.csv"
                     )
             else:
                 logging.warning(
@@ -99,7 +99,9 @@ class Download:
         """
 
         all_files = [
-            PATH.NUCLIDES + i for i in os.listdir(PATH.NUCLIDES) if ".csv" in i
+            self.path_nuclides + i
+            for i in os.listdir(self.path_nuclides)
+            if ".csv" in i
         ]
         combined_nuclides = pd.DataFrame([])
         logging.info("Combining all nuclides into one large file...")
@@ -109,11 +111,11 @@ class Download:
                 file.split("\\")[-1].replace(".csv", "").lower()
             )
             combined_nuclides = pd.concat([combined_nuclides, single_nuclide], axis=0)
-        combined_nuclides.to_csv(f"{PATH.OUTPUT}nuclides.csv", index_label="index")
-        logging.info(f"SAVED: {PATH.OUTPUT}nuclides.csv")
+        combined_nuclides.to_csv(f"{self.path_output}nuclides.csv", index_label="index")
+        logging.info(f"SAVED: {self.path_output}nuclides.csv")
         logging.info("Saving to Database...")
         combined_nuclides.to_sql(
-            "nuclide", DB.ENGINE, if_exists="replace", index=False, schema="nuclide"
+            "nuclide", self.engine, if_exists="replace", index=False, schema="nuclide"
         )
         logging.info("Saved to Database")
 
@@ -129,12 +131,12 @@ class Download:
         nuclides = ground_state["nuclide_id"].tolist()
         for nuclide in nuclides:
             if nuclide is not None and not os.path.exists(
-                f"{PATH.NUCLIDES}{nuclide}.csv"
+                f"{self.path_nuclides}{nuclide}.csv"
             ):
                 self._download_single_nuclide(nuclide_id=nuclide)
             else:
                 logging.info(f"Found {nuclide} already downloaded, skipping.")
         self.combine_nuclides_and_save_to_db()
         logging.info(
-            f"Loaded all nuclides, check {PATH.NUCLIDES}combined_nuclides.csv, as a merged file"
+            f"Loaded all nuclides, check {self.path_nuclides}combined_nuclides.csv, as a merged file"
         )

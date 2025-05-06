@@ -1,35 +1,39 @@
 from src.peaks.finder import PeakFinder
 import src.measurements.api as mpi
 
-dates = mpi.unique_dates()
+dates = mpi.API().unique_dates()
 
-result = PeakFinder(
-    selected_date=mpi.unique_dates()[0],
-    nuclides=[
-        "cs137",
-        "co60",
-        "i131",
-        "tc99m",
-        "ra226",
-        "th232",
-        "u238",
-        "k40",
-        "am241",
-        "na22",
-        "eu152",
-        "eu154",
-    ],
-    tolerance=0.05,
-    nuclides_intensity=10,
-    matching_ratio=1 / 100,
-    interpolate_energy=True,
-).process_spectrum(return_detailed_view=False)
+for date in dates[0:10]:
+    result = PeakFinder(
+        selected_date=date,
+        data=mpi.API().measurement([date]),
+        meta=mpi.API().meta_data([date]),
+        nuclides=[
+            "cs137",
+            "co60",
+            "i131",
+            "tc99m",
+            "ra226",
+            "th232",
+            "u238",
+            "k40",
+            "am241",
+            "na22",
+            "eu152",
+            "eu154",
+        ],
+        tolerance=0.05,
+        nuclides_intensity=10,
+        matching_ratio=1 / 100,
+        interpolate_energy=True,
+    ).process_spectrum(return_detailed_view=False)
 
 # for date in dates:
 #     result = PeakFinder(
 #         selected_date=date,
 #         nuclides=[
 #             "cs137",
+
 #             "co60",
 #             "i131",
 #             "tc99m",

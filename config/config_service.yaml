@@ -1,0 +1,24 @@
+vae:
+  device: cuda
+  input_dim: 8160
+  hidden_dim: 512  # 512 GOOD
+  second_hidden_dim: 128  # 128 GOOD
+  latent_dim: 24  # 24 GOOD
+  batch_size: 8160
+  learing_rate: 1e-3 # 1e-3 GOOD
+  epochs: 500
+
+postges_db:
+  username: admin
+  password: admin
+  host: db
+  port: 5432
+  database: nuclide
+
+mlflow:
+  uri: http://localhost:5000
+
+path:
+  measurements: "data/measurements/"
+  nuclides: "data/nuclides/"
+  output: "data/"

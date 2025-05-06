@@ -1,5 +1,6 @@
 from src.synthetics.vae_model import VAEModel
 import src.measurements.api as mpi
+import src.peaks.api as ppi
 
 # mlflow.set_tracking_uri(uri=MLFLOW.URI)
 # model = mlflow.pytorch.load_model("runs:/37612698db9f43b1900033c063984ce1/model")
@@ -27,9 +28,10 @@ import src.measurements.api as mpi
 #             plt.savefig(f"tmp/_test_dim{dim}_sample{i}.png")
 #             plt.close()
 
-dates = mpi.unique_dates()
+dates = ppi.API().unique_dates()
 dataset = (
-    mpi.measurement(dates[0:100])
+    ppi.API()
+    .measurement(dates[0:1000])
     .sort_values(by=["datetime", "energy", "count"])
     .reset_index(drop=True)
 )

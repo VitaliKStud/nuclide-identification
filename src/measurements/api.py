@@ -1,32 +1,41 @@
 import pandas as pd
-from config import DB
+from config.loader import load_config, load_engine
 
 
-def unique_dates():
-    return pd.read_sql(
-        sql='SELECT DISTINCT("datetime") FROM meta.meta_data', con=DB.ENGINE
-    )["datetime"].to_list()
+class API:
+    def __init__(self):
+        self.engine = load_engine()
+        self.path_measurements = load_config()["path"]["measurements"]
+        self.path_nuclides = load_config()["path"]["nuclides"]
+        self.path_output = load_config()["path"]["output"]
 
+    def unique_dates(
+        self,
+    ):
+        return pd.read_sql(
+            sql='SELECT DISTINCT("datetime") FROM meta.meta_data', con=self.engine
+        )["datetime"].to_list()
 
-def measurement(dates: list):
-    dates = [pd.Timestamp(t) for t in dates]
-    timestamps_str = tuple(t.strftime("%Y-%m-%d %H:%M:%S") for t in dates)
-    if len(timestamps_str) == 1:
-        query = f"SELECT * FROM measurements.measurements WHERE datetime = '{timestamps_str[0]}'"
-    else:
-        query = f'SELECT * FROM measurements.measurements WHERE "datetime" IN {timestamps_str}'
-    return (
-        pd.read_sql(sql=query, con=DB.ENGINE)
-        .sort_values(by=["energy", "datetime"])
-        .reset_index(drop=True)
-    )
+    def measurement(self, dates: list):
+        dates = [pd.Timestamp(t) for t in dates]
+        timestamps_str = tuple(t.strftime("%Y-%m-%d %H:%M:%S") for t in dates)
+        if len(timestamps_str) == 1:
+            query = f"SELECT * FROM measurements.measurements WHERE datetime = '{timestamps_str[0]}'"
+        else:
+            query = f'SELECT * FROM measurements.measurements WHERE "datetime" IN {timestamps_str}'
+        return (
+            pd.read_sql(sql=query, con=self.engine)
+            .sort_values(by=["energy", "datetime"])
+            .reset_index(drop=True)
+        )
 
-
-def meta_data(dates):
-    dates = [pd.Timestamp(t) for t in dates]
-    timestamps_str = tuple(t.strftime("%Y-%m-%d %H:%M:%S") for t in dates)
-    if len(timestamps_str) == 1:
-        query = f"SELECT * FROM meta.meta_data WHERE datetime = '{timestamps_str[0]}'"
-    else:
-        query = f'SELECT * FROM meta.meta_data WHERE "datetime" IN {timestamps_str}'
-    return pd.read_sql(sql=query, con=DB.ENGINE)
+    def meta_data(self, dates):
+        dates = [pd.Timestamp(t) for t in dates]
+        timestamps_str = tuple(t.strftime("%Y-%m-%d %H:%M:%S") for t in dates)
+        if len(timestamps_str) == 1:
+            query = (
+                f"SELECT * FROM meta.meta_data WHERE datetime = '{timestamps_str[0]}'"
+            )
+        else:
+            query = f'SELECT * FROM meta.meta_data WHERE "datetime" IN {timestamps_str}'
+        return pd.read_sql(sql=query, con=self.engine)

@@ -1,14 +1,15 @@
 import os
 import pandas as pd
 import re
-from config import DB, PATH
 from sqlalchemy import text
 import logging
 from datetime import datetime
+import src.measurements.api as mpi
 
 
-class Measurements:
+class Measurements(mpi.API):
     def __init__(self):
+        super().__init__()
         self.meta_data = {}
         self.measurements = pd.DataFrame([])
         self.pattern_time = r"Realtime:([\d.]+)Livetime:([\d.]+)"
@@ -25,8 +26,8 @@ class Measurements:
         }
 
     def process_single_file(self, filename):
-        logging.info(f"Reading {PATH.MEASUREMENTS}{filename}")
-        with open(f"{PATH.MEASUREMENTS}{filename}", "r") as f:
+        logging.info(f"Reading {self.path_measurements}{filename}")
+        with open(f"{self.path_measurements}{filename}", "r") as f:
             # Converting Filename to Datetime
             date_from_file_name = datetime.strptime(
                 filename.split("_")[0] + " " + filename.split("_")[1],
@@ -74,10 +75,10 @@ class Measurements:
     def process_measurements_to_csv_to_db(self):
         """ """
         all_measurement_paths = [
-            i for i in os.listdir(PATH.MEASUREMENTS) if ".txt" in i
+            i for i in os.listdir(self.path_measurements) if ".txt" in i
         ]
 
-        with DB.ENGINE.connect() as conn:
+        with self.engine.connect() as conn:
             with conn.begin():
                 conn.execute(text('DROP TABLE IF EXISTS "measurements.measurements"'))
 
@@ -90,7 +91,7 @@ class Measurements:
             logging.info(f"Writing {filename} to Database")
             measurement.to_sql(
                 "measurements",
-                DB.ENGINE,
+                self.engine,
                 if_exists="append",
                 index=False,
                 schema="measurements",
@@ -99,8 +100,10 @@ class Measurements:
 
             self.measurements = pd.concat([self.measurements, measurement], axis=0)
 
-        self.measurements.to_csv(f"{PATH.OUTPUT}measurements.csv", index_label="index")
-        logging.info(f"Saved {PATH.OUTPUT}measurements.csv")
+        self.measurements.to_csv(
+            f"{self.path_output}measurements.csv", index_label="index"
+        )
+        logging.info(f"Saved {self.path_output}measurements.csv")
 
         meta_data_df = pd.DataFrame(self.meta_data).T.reset_index()
         meta_data_df[["coef_1", "coef_2", "coef_3", "coef_4"]] = pd.DataFrame(
@@ -110,12 +113,12 @@ class Measurements:
         meta_data_df = meta_data_df.rename(columns={"index": "datetime"})
         logging.info("Writing meta_data to Database")
         meta_data_df.to_sql(
-            "meta_data", DB.ENGINE, if_exists="replace", index=False, schema="meta"
+            "meta_data", self.engine, if_exists="replace", index=False, schema="meta"
         )
         logging.info("Wrote meta_data to Database")
 
-        meta_data_df.to_csv(f"{PATH.OUTPUT}meta_data.csv", index=False)
-        logging.info(f"Saved {PATH.OUTPUT}meta_data.csv")
+        meta_data_df.to_csv(f"{self.path_output}meta_data.csv", index=False)
+        logging.info(f"Saved {self.path_output}meta_data.csv")
 
         files_combined_len = len(self.measurements["datetime"].unique())
         meta_data_len = len(self.meta_data)

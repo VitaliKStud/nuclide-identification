@@ -5,6 +5,19 @@ measurements.
 
 ---
 
+SELECT datetime,
+    count(*) AS row_count,
+    sum(
+        CASE
+            WHEN peak THEN 1
+            ELSE 0
+        END) AS peak_sum
+   FROM processed_measurements
+  GROUP BY datetime
+  ORDER BY datetime;
+
+use --no-verify tag
+
 TODO: 
 
 - Fill Documentation Environment and Setup section.
@@ -61,3 +74,6 @@ https://www-nds.iaea.org/
 - https://www-nds.iaea.org/relnsd/v1/data?fields=decay_rads&nuclides=am241&rad_types=g
 fields=decay_rads&nuclides=135xe&rad_types=e
 - gammas
+
+LOCALLY: CONFIG_FILE=config_local.yaml
+DOCKER: CONFIG_FILE=config_service.yaml

@@ -1,5 +1,3 @@
-import src.nuclide.api as npi
-import src.measurements.api as mpi
 from scipy.signal import find_peaks
 import pandas as pd
 import numpy as np
@@ -7,18 +5,21 @@ from scipy.optimize import curve_fit, OptimizeWarning
 from uncertainties import unumpy
 import warnings
 from scipy.stats import norm
-from config import DB
 import logging
 from sqlalchemy import text
 from scipy.interpolate import interp1d
+from config.loader import load_engine
+import src.peaks.api as ppi
 
 
-class PeakFinder:
+class PeakFinder(ppi.API):
     def __init__(
         self,
         selected_date,
         nuclides,
         nuclides_intensity,
+        data=None,
+        meta=None,
         interpolate_energy=True,
         prominence=1000,
         width=None,
@@ -29,11 +30,13 @@ class PeakFinder:
         step_size=0.34507313512321336,
         **kwargs,
     ):
+        super().__init__()
+        self.engine = load_engine()
         self.selected_date = selected_date
-        self.data = mpi.measurement([selected_date])
-        self.meta = mpi.meta_data([selected_date])
+        self.data = data
+        self.meta = meta
         self.polynomial = self.__polynomial_f()
-        self.isotopes = npi.nuclides(nuclides, nuclides_intensity)
+        self.isotopes = self.npi.nuclides(nuclides, nuclides_intensity)
         logging.warning(
             f"Isotopes: {self.isotopes['nuclide_id'].unique()}, {len(self.isotopes['nuclide_id'].unique())}"
         )
@@ -224,12 +227,20 @@ class PeakFinder:
                     self.identified_peaks_idx.append(peak_idx)
 
     def __polynomial_f(self):
-        return (
-            lambda x: self.meta["coef_1"][0]
-            + self.meta["coef_2"][0] * x
-            + self.meta["coef_3"][0] * x**2
-            + self.meta["coef_4"][0] * x**3
-        )
+        if self.meta is None:
+            self.data = self.data.sort_values(by="energy")
+            x = self.data["energy"].to_numpy()
+            coef = np.polyfit(np.arange(0, 8160, 1), x, deg=3)
+            logging.warning(f"Calculated Coefficients: {coef}")
+            return lambda x: coef[-1] + coef[-2] * x + coef[-3] * x**2 + coef[-4] * x**3
+
+        else:
+            return (
+                lambda x: self.meta["coef_1"][0]
+                + self.meta["coef_2"][0] * x
+                + self.meta["coef_3"][0] * x**2
+                + self.meta["coef_4"][0] * x**3
+            )
 
     def __safe_processed_spectrum(self):
         self.data[
@@ -256,7 +267,7 @@ class PeakFinder:
                      FROM measurements.processed_measurements
                      WHERE "datetime" = :selected_date;
                      """)
-        with DB.ENGINE.connect() as connection:
+        with self.engine.connect() as connection:
             try:
                 with connection.begin():
                     connection.execute(query, {"selected_date": self.selected_date})
@@ -265,7 +276,7 @@ class PeakFinder:
                 logging.warning(f"Deletion failed: {e}")
         self.data.to_sql(
             self.schema,
-            DB.ENGINE,
+            self.engine,
             if_exists="append",
             index=False,
             schema="measurements",
@@ -283,6 +294,30 @@ class PeakFinder:
             fill_value=0,
         )
         return f(energy_axis), energy_axis
+
+    def __interpolation_process(self):
+        interpolated_df = pd.DataFrame()
+        interpolated_counts, energy_axis = self.__interpolate_spectrum(
+            self.data["energy"].values,
+            self.data["count"].values,
+        )
+
+        interpolated_df["datetime"] = self.data["datetime"]
+        interpolated_df["energy"] = energy_axis
+        interpolated_df["count"] = interpolated_counts
+        self.data = pd.merge_asof(
+            interpolated_df.sort_values(by="energy"),
+            self.data.sort_values(by="energy"),
+            on="energy",
+            direction="nearest",
+        )
+
+        self.data = self.data.drop(columns=["count_y", "datetime_y"])
+        self.data = self.data.rename(
+            columns={"count_x": "count", "datetime_x": "datetime"}
+        )
+
+        self.data["energy"] = self.data["energy"].round(3)
 
     def process_spectrum(
         self,
@@ -353,14 +388,6 @@ class PeakFinder:
             c * p for c, p in zip(self.isotope_confidences, self.percentage_matched)
         ]
 
-        if self.interpolate_energy is True:
-            interpolated_counts, energy_axis = self.__interpolate_spectrum(
-                self.data["energy"].values,
-                self.data["count"].values,
-            )
-            self.data["energy"] = energy_axis
-            self.data["count"] = interpolated_counts
-
         if return_detailed_view is False:
             self.data = self.data.drop(columns=["counts_cleaned"])
             self.data["peak"] = False
@@ -387,6 +414,10 @@ class PeakFinder:
             self.data.loc[self.identified_peaks_idx, "identified_isotope"] = (
                 self.identified_isotopes
             )
+
+            if self.interpolate_energy is True:
+                self.__interpolation_process()
+
             self.__safe_processed_spectrum()
             return self.data
 
