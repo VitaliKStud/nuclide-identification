@@ -1,16 +1,14 @@
-from dash import Dash, dcc, html, Input, Output
+from dash import dcc, html, Input, Output, callback, register_page
 import plotly.graph_objects as go
 import src.measurements.api as mpi
 import src.peaks.api as ppi
-import src.synthetics.api as spi
+import src.vae.api as spi
 from datetime import datetime
 
-
-# Initialize Dash app
-app = Dash(__name__)
+register_page(__name__, "/", title="Dashboard")
 
 # Define the layout of the app
-app.layout = html.Div(
+layout = html.Div(
     [
         html.H4("Combined Lines and Bara Chart"),
         dcc.Dropdown(
@@ -35,7 +33,7 @@ app.layout = html.Div(
 )
 
 
-@app.callback(Output("output", "children"), Input("checklist", "value"))
+@callback(Output("output", "children"), Input("checklist", "value"))
 def convert_to_datetime(selected_value):
     if selected_value:
         selected_datetime = datetime.fromisoformat(selected_value)
@@ -44,7 +42,7 @@ def convert_to_datetime(selected_value):
 
 
 # Callback to update chart and table based on user input
-@app.callback(
+@callback(
     Output("graph", "figure"),  # Output data for the table
     Input("checklist", "value"),
 )
@@ -72,7 +70,7 @@ def update_combined_chart(file_id):
     return fig
 
 
-@app.callback(
+@callback(
     Output("graph2", "figure"),  # Output data for the table
     Input("checklist", "value"),
 )
@@ -112,7 +110,7 @@ def update_combined_chart(file_id):
     return fig
 
 
-@app.callback(
+@callback(
     Output("graph3", "figure"),  # Output data for the table
     Input("checklist_synthetics", "value"),
 )

@@ -6,6 +6,9 @@ class API:
     def __init__(self):
         self.engine = load_engine()
 
+    def generate_new_synthetic(self, z: list):
+        pass
+
     def unique_dates(self):
         return pd.read_sql(
             sql='SELECT DISTINCT("datetime") FROM measurements.processed_synthetics',
@@ -22,3 +25,5 @@ class API:
             .sort_values(by=["datetime", "energy"])
             .reset_index(drop=True)
         )
+
+

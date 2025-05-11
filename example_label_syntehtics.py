@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from config.loader import load_config
+import pandas as pd
+from src.peaks.finder import PeakFinder
 
 generated_x_hat = []
 
@@ -27,7 +29,7 @@ for i in generated_x_hat:
     plt.plot(i)
 plt.show()
 
-import pandas as pd
+
 
 step_size = 0.34507313512321336
 energy_max = step_size * 8160
@@ -43,9 +45,6 @@ data = data.rename(columns={0: "count"})
 sns.lineplot(data=data, x="energy", y="count", hue="datetime")
 
 print(data.loc[data["datetime"] == "synthetic_1"].reset_index(drop=True))
-
-
-from src.peaks.finder import PeakFinder
 
 data = data.loc[data["datetime"] == "synthetic_4"].reset_index(drop=True)
 result = PeakFinder(

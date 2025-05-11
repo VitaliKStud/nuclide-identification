@@ -1,12 +1,16 @@
 vae:
-  device: cuda
+  device: cpu
   input_dim: 8160
   hidden_dim: 512  # 512 GOOD
-  second_hidden_dim: 128  # 128 GOOD
+#  second_hidden_dim: 128  # 128 GOOD
   latent_dim: 24  # 24 GOOD
   batch_size: 8160
-  learing_rate: 1e-3 # 1e-3 GOOD
+  leanring_rate: 1e-3 # 1e-3 GOOD
   epochs: 500
+
+measurements:
+  number_of_channels: 8160
+  step_size: 0.34507313512321336
 
 postges_db:
   username: admin
@@ -16,9 +20,15 @@ postges_db:
   database: nuclide
 
 mlflow:
-  uri: http://localhost:5000
+  uri: http://mlflow-server:5000
+
+minio:
+  AWS_ACCESS_KEY_ID: minio
+  AWS_SECRET_ACCESS_KEY: minio123
+  MLFLOW_S3_ENDPOINT_URL: http://minio:9000
 
 path:
-  measurements: "data/measurements/"
-  nuclides: "data/nuclides/"
-  output: "data/"
+  measurements: /data/measurements/
+  nuclides: /data/nuclides/
+  output: /data/
+
