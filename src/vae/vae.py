@@ -29,7 +29,7 @@ class VAE(nn.Module):
 
         self.decoder_energy = nn.Linear(
             configs["vae"]["latent_dim"], configs["vae"]["input_dim"]
-        )
+        ) # DEPRICATED, ENERGY INTERPOLATED
 
         self.mean_layer = nn.Linear(
             configs["vae"]["latent_dim"], configs["vae"]["latent_dim"]

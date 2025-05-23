@@ -262,11 +262,19 @@ class PeakFinder(ppi.API):
                 "identified_peak",
             ]
         ].round(2)
-        query = text("""
-                     DELETE
-                     FROM measurements.processed_measurements
-                     WHERE "datetime" = :selected_date;
-                     """)
+        if self.schema == "processed_synthetics":
+            query = text("""
+                         DELETE
+                         FROM measurements.processed_synthetics
+                         WHERE "datetime" = :selected_date;
+                         """)
+
+        elif self.schema == "processed_measurements":
+            query = text("""
+                         DELETE
+                         FROM measurements.processed_measurements
+                         WHERE "datetime" = :selected_date;
+                         """)
         with self.engine.connect() as connection:
             try:
                 with connection.begin():

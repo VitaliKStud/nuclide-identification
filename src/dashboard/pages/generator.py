@@ -6,6 +6,8 @@ import src.vae.api as spi
 from datetime import datetime
 from src.generator.generator import Generator
 import numpy as np
+import dash_bootstrap_components as dbc
+
 
 register_page(__name__, "/generator", title="Dashboard")
 
@@ -13,9 +15,14 @@ layout = html.Div(
     [
         html.H4("Combined Lines and Bara Chart"),
         dcc.Graph(id="generator-graph"),
-        dcc.Slider(-10.0, 10.0, 0.1, value=-3.0, id="generator-slider",
+        dbc.Row([dbc.Col(
+        [dcc.Slider(-10.0, 10.0, 0.1, value=-3.0, id="generator-slider",
                    tooltip={"placement": "bottom", "always_visible": True},
                    updatemode="drag"),
+        dcc.Slider(-10.0, 10.0, 0.1, value=-3.0, id="generator-slider2",
+                   tooltip={"placement": "bottom", "always_visible": True},
+                   updatemode="drag"),]
+        )])
     ]
 )
 
@@ -25,10 +32,14 @@ layout = html.Div(
     Input("generator-slider", "value"),
 )
 def update_generator_plot(generator_slider):
-    data_to_generate = np.arange(-1, 1, 1 / 12, dtype="float32")
-    data_to_generate[1] = generator_slider
+    latent_space = []
+    for i in range(10):
+        data_to_generate = np.arange(-1, 1, 1 / 12, dtype="float32")
+        data_to_generate[1] = generator_slider + i
+        latent_space.append(data_to_generate)
+
     generator = Generator()
-    gen = generator.generate(latent_space=[data_to_generate, data_to_generate+0.5])
+    gen = generator.generate(latent_space=latent_space)
 
     fig = go.Figure()
     for energy_axis, generated_data in gen:

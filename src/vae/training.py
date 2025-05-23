@@ -4,14 +4,13 @@ import mlflow.data.pandas_dataset
 from tqdm import tqdm
 import torch.nn.functional as F
 import torch
-import matplotlib.pyplot as plt
 from src.vae.vae import VAE
 from torch.utils.data import DataLoader
 from src.vae.measurement import Measurement
 from config.loader import load_config
 import logging
 import os
-import json
+
 
 class Training:
 
@@ -55,7 +54,6 @@ class Training:
         mlflow.set_registry_uri(uri=load_config()["mlflow"]["uri"])
         mlflow.set_experiment("SyntheticsVAE")
 
-
         with mlflow.start_run(run_name="VAE"):
             print(f"artifact_uri={mlflow.get_artifact_uri()}")
             mlflow.log_dict({"used_keys": [str(i) for i in self.used_keys]}, "artifacts.json")
@@ -92,7 +90,6 @@ class Training:
             mlflow.pytorch.log_model(best_model, "model_cuda")
             mlflow.pytorch.log_model(best_model.to("cpu"), "model_cpu")
 
-
     def __vae_validation(self):
         self.model.eval()
         validation_loss = 0
@@ -122,13 +119,12 @@ class Training:
         self.validation_loss_history.append(val_loss)
 
     def __vae_loss(self, x, count_hat, mean, logvar):
-        reconstruction_loss_count = F.mse_loss(count_hat, x, reduction="sum")
-        kl_divergence = -0.5 * torch.sum(1 + torch.log(logvar.pow(2)) - mean.pow(2) - logvar.pow(2))
+        reconstruction_loss_count = F.mse_loss(count_hat, x, reduction="sum")  # CROSS ENTROPY SHOULD BE TRIED OUT
+        kl_divergence = -0.5 * torch.sum(1 + torch.log(logvar.pow(2)) - mean.pow(2) - logvar.pow(2))  # PARETO
         total_loss = reconstruction_loss_count + kl_divergence
         return total_loss, reconstruction_loss_count, kl_divergence
 
     def vae_training(self):
-
         for epoch in range(self.configs["vae"]["epochs"]):
             loop = tqdm(enumerate(self.train_loader))
             epoch_loss = 0
@@ -152,14 +148,5 @@ class Training:
             self.training_reconstruction_loss_history.append(epoch_reconstruction_loss_count / self.train.__len__())
             self.training_kl_divergence_history.append(epoch_kl_divergence / self.train.__len__())
             self.training_loss_history.append(avg_loss)
-
-            if (epoch + 1) % 20 == 0:
-                plt.plot(
-                    count_hat.cpu().detach().numpy(),
-                    label="Reconstructed",
-                    alpha=0.7,
-                )
-                plt.savefig(f"tmp/without_x_epoch_{epoch}_loss_{avg_loss:.4f}_x.png")
-                plt.close()
             self.__vae_validation()
         self.__safe_model()

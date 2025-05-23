@@ -5,13 +5,13 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
-import src.peaks.api as ppi
+from src.peaks.api import API as ppi
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import f1_score, precision_score, recall_score
 
-dates = ppi.unique_dates()
-dataset = ppi.measurement(dates[0:1000])
+dates = ppi().unique_dates()
+dataset = ppi().measurement(dates[0:1000])
 
 
 def normalize_spectrum(df):
@@ -195,3 +195,13 @@ print(f"Precision: {precision:.4f} | Recall: {recall:.4f}")
 #
 # plt.tight_layout()
 # plt.show()
+
+# TODO:
+# BASELINE RANDOM FOREST FÜR DETECTOR
+# Nur Ausgangsdaten -> Performance am Ende | Wie viele für Synthetische und verteilen
+# Ausgangsdaten + GenData -> ...
+# Nur GenData -> ... | WIE VIELE FÜR PERFORMANCE 100...200...300? 100.000 200.000 300.000
+# Gradienten-Plots und Entwicklung
+# Synthetic mit Ausgangsdaten vergleichen, aber GLEICHE Anzahl-SAMPLES -> Ähnlichkeit?
+# Hypothesentest
+# Dashboard und rest minimal erwähne

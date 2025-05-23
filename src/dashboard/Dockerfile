@@ -5,6 +5,6 @@ WORKDIR /usr/src/app
 COPY start_dashboard.py .
 COPY pyproject.toml .
 
-RUN pip install dash pandas plotly dash-table sqlalchemy psycopg2 PyYAML mlflow torch numpy boto3
+RUN pip install dash pandas plotly dash-table sqlalchemy psycopg2 PyYAML mlflow torch numpy boto3 dash-bootstrap-components uncertainties
 
 CMD [ "python", "start_dashboard.py" ]

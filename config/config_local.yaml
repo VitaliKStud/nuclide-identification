@@ -8,6 +8,13 @@ vae:
   learning_rate: 1e-3 # 1e-3 GOOD
   epochs: 100
 
+peakfinder:
+  tolerance: 0.05
+  nuclide_intensity: 10
+  matching_ratio: 0.01
+  interpolate_energy: True
+  prominence: 2000
+
 measurements:
   number_of_channels: 8160
   step_size: 0.34507313512321336

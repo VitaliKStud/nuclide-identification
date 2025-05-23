@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from config.loader import load_config
 import os
+import pandas as pd
+from src.peaks.finder import PeakFinder
 
 
 class Generator:
@@ -12,8 +14,22 @@ class Generator:
         self.model_name = "VAE_CPU"
         self.model_version = "latest"
         self.model_uri = load_config()["mlflow"]["uri"]
+        self.tolerance = float(load_config()["peakfinder"]["tolerance"])
+        self.nuclide_intensity = load_config()["peakfinder"]["nuclide_intensity"]
+        self.matching_ratio = float(load_config()["peakfinder"]["matching_ratio"])
+        self.prominence = int(load_config()["peakfinder"]["prominence"])
         self.model = self.__load_model()
 
+    def get_model(self):
+        return self.model
+
+    def get_min_max(self):
+        client = mlflow.tracking.MlflowClient(tracking_uri=load_config()["mlflow"]["uri"])
+        run_id = client.get_latest_versions("VAE_CPU")[0].run_id
+        run = client.get_run(run_id)
+        min = float(run.data.params["min"])
+        max = float(run.data.params["max"])
+        return min, max
 
     def __load_model(self):
         os.environ["AWS_ACCESS_KEY_ID"] = load_config()["minio"]["AWS_ACCESS_KEY_ID"]
@@ -23,16 +39,45 @@ class Generator:
         return mlflow.pytorch.load_model(f"models:/{self.model_name}/{self.model_version}").to(self.device)
 
     def __unscale(self, x_hat):
-        client = mlflow.tracking.MlflowClient(tracking_uri=load_config()["mlflow"]["uri"])
-        run_id = client.get_latest_versions("VAE_CPU")[0].run_id
-        run = client.get_run(run_id)
-        min = float(run.data.params["min"])
-        max = float(run.data.params["max"])
+        min, max = self.get_min_max()
         return x_hat * (max - min) + min
 
-    def generate(self, latent_space):
-        # np.arange(-1, 1, 1 / (self.latent_dim / 2, dtype="float32")
+    def process(self, latent_space):
+        generator = self.generate(latent_space)
+        sample_number = 0
+        for energy_axis, generated_data in generator:
+            synthetic_data = pd.DataFrame([])
+            synthetic_data["energy"] = energy_axis
+            synthetic_data["datetime"] = f"synthetic_{sample_number}"
+            synthetic_data["count"] = generated_data
+            PeakFinder(
+                selected_date=f"synthetic_{sample_number}",
+                data=synthetic_data,
+                meta=None,
+                schema="processed_synthetics",
+                nuclides=[
+                    "cs137",
+                    "co60",
+                    "i131",
+                    "tc99m",
+                    "ra226",
+                    "th232",
+                    "u238",
+                    "k40",
+                    "am241",
+                    "na22",
+                    "eu152",
+                    "eu154",
+                ],
+                prominence=self.prominence,
+                tolerance=self.tolerance,
+                nuclides_intensity=self.nuclide_intensity,
+                matching_ratio=self.matching_ratio,
+                interpolate_energy=False,
+            ).process_spectrum(return_detailed_view=False)
+            sample_number += 1
 
+    def generate(self, latent_space):
         step_size = load_config()["measurements"]["step_size"]
         energy_max = step_size * load_config()["measurements"]["number_of_channels"]
         energy_axis = np.arange(0, energy_max, step_size)

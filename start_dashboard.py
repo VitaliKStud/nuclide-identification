@@ -1,7 +1,8 @@
 from dash import html, dcc, Dash
 import dash
+import dash_bootstrap_components as dbc
 
-app = Dash(__name__, use_pages=True, pages_folder="src/dashboard/pages")
+app = Dash(__name__, use_pages=True, pages_folder="src/dashboard/pages", external_stylesheets=[dbc.themes.FLATLY])
 
 app.layout = html.Div([
     html.H1('Multi-page app with Dash Pages'),
