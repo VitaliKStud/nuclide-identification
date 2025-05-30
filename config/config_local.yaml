@@ -2,18 +2,33 @@ vae:
   device: cuda
   input_dim: 8160
   hidden_dim: 512  # 512 GOOD
-#  second_hidden_dim: 128  # 128 GOOD
+  #  second_hidden_dim: 128  # 128 GOOD
   latent_dim: 24  # 24 GOOD
   batch_size: 2
   learning_rate: 1e-3 # 1e-3 GOOD
   epochs: 100
 
 peakfinder:
-  tolerance: 0.05
-  nuclide_intensity: 10
-  matching_ratio: 0.01
-  interpolate_energy: True
-  prominence: 2000
+  tolerance: 0.60 # CONFIDANCE / TOLERANCE FOR PEAKS
+  nuclide_intensity: 10 # INTENSITY OF THE ENERGY
+  matching_ratio: 0.01 # MATCHED
+  interpolate_energy: True # RESCALING X-AXIS (ENERGY-AXIS)
+  prominence: 200 # PROBABLY 2000
+  wlen: 10
+  nuclides: [
+    "cs137",
+    "co60",
+    "i131",
+    "tc99m",
+    "ra226",
+    "th232",
+    "u238",
+    "k40",
+    "am241",
+    "na22",
+    "eu152",
+    "eu154",
+  ]
 
 measurements:
   number_of_channels: 8160

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from config.loader import load_config
+import logging
 
 
 class VAE(nn.Module):
@@ -56,4 +57,5 @@ class VAE(nn.Module):
         mean, logvar = self.encode(x)
         z = self.reparameterize(mean, logvar)
         x_hat = self.decode(z)
+        logging.warning(f"z: {z}")
         return x_hat, mean, logvar

@@ -7,36 +7,66 @@ from datetime import datetime
 from src.generator.generator import Generator
 import numpy as np
 import dash_bootstrap_components as dbc
+import random
+from config.loader import load_config
 
+latent_dim = load_config()["vae"]["latent_dim"]
 
-register_page(__name__, "/generator", title="Dashboard")
+register_page(__name__, "/generator", title="Generator")
 
-layout = html.Div(
+latent_dim_sliders = [dcc.Slider(-10.0, 10.0, 0.1, value=random.uniform(-1, 1), id=f"latent-dim:{dim}",
+                                tooltip={"placement": "bottom", "always_visible": True},
+                                marks={i: '{}'.format(i) for i in range(-10, 11, 2)},
+                                updatemode="drag") for dim in range(latent_dim)]
+
+sidebar = dbc.Col(
     [
-        html.H4("Combined Lines and Bara Chart"),
-        dcc.Graph(id="generator-graph"),
-        dbc.Row([dbc.Col(
-        [dcc.Slider(-10.0, 10.0, 0.1, value=-3.0, id="generator-slider",
-                   tooltip={"placement": "bottom", "always_visible": True},
-                   updatemode="drag"),
-        dcc.Slider(-10.0, 10.0, 0.1, value=-3.0, id="generator-slider2",
-                   tooltip={"placement": "bottom", "always_visible": True},
-                   updatemode="drag"),]
-        )])
-    ]
+        html.H6("Latent-Dim Parameters", style={"color": "lightgrey"}),
+        dbc.Row(latent_dim_sliders),
+        html.Br(),
+    ],
+    style={
+        "position": "fixed",
+        "top": 72,
+        "left": 0,
+        "bottom": 0,
+        "width": "350px",
+        "padding": "20px",
+        "backgroundColor": "#3B4F63",
+        "overflowY": "auto",
+    },
 )
+
+content = dbc.Col(
+    [
+        dbc.Row(dcc.Graph(id="generator-graph")),
+    ],
+    style={
+        "marginLeft": "370px",  # slightly more than sidebar width
+        "padding": "20px",
+        "height": "100vh",
+    },
+
+)
+
+layout = dbc.Container(
+    dbc.Row([sidebar, content]),
+    fluid=True,
+    style={"padding": 0}
+)
+
 
 # Callback to update chart and table based on user input
 @callback(
     Output("generator-graph", "figure"),  # Output data for the table
-    Input("generator-slider", "value"),
+    [Input(f"latent-dim:{dim}", "value") for dim in range(latent_dim)],
 )
-def update_generator_plot(generator_slider):
+def update_generator_plot(*generator_slider):
     latent_space = []
-    for i in range(10):
-        data_to_generate = np.arange(-1, 1, 1 / 12, dtype="float32")
-        data_to_generate[1] = generator_slider + i
-        latent_space.append(data_to_generate)
+    data_to_generate = np.zeros(latent_dim, dtype="float32")
+    for i, latent_value in enumerate(generator_slider):
+        data_to_generate[i] = latent_value
+    latent_space.append(data_to_generate)
 
     generator = Generator()
     gen = generator.generate(latent_space=latent_space)

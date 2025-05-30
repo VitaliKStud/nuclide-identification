@@ -79,3 +79,22 @@ class API:
         ORDER BY "nuclide_id", "intensity" DESC
         """
         return pd.read_sql(sql=query, con=self.engine)
+
+    def nuclides_by_intensity_and_min_max_energy(self, intensity, min_energy, max_energy):
+        query = f"""
+        SELECT
+            "nuclide_id", 
+            "energy", 
+            "intensity", 
+            "d_z", 
+            "d_n"
+        FROM nuclide.nuclide
+        WHERE "intensity" IS NOT NULL 
+        AND "unc_en" IS NOT NULL
+        AND "intensity" > {intensity}
+        AND "energy" >= {min_energy}
+        AND "energy" <= {max_energy}
+        ORDER BY "nuclide_id", "intensity" DESC
+        """
+        return pd.read_sql(sql=query, con=self.engine)
+

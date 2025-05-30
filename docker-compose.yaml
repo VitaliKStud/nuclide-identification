@@ -47,6 +47,7 @@ services:
     volumes:
       - ./src:/usr/src/app/src
       - ./config:/usr/src/app/config
+      - ./start_dashboard.py:/usr/src/app/start_dashboard.py
     ports:
       - "8050:8050"
 

@@ -17,6 +17,8 @@ class Pipeline:
         self.matching_ratio = float(load_config()["peakfinder"]["matching_ratio"])
         self.interpolate_energy = bool(load_config()["peakfinder"]["interpolate_energy"])
         self.prominence = int(load_config()["peakfinder"]["prominence"])
+        self.nuclides = list(load_config()["peakfinder"]["nuclides"])
+        self.wlen = int(load_config()["peakfinder"]["wlen"])
 
     def train_vae(self):
         dates = ppi.API().unique_dates()
@@ -50,9 +52,8 @@ class Pipeline:
 
     def prepare_measurements(self):
         Measurements().process_measurements_to_csv_to_db()
-        self.__identify_peaks()
 
-    def __identify_peaks(self, schema="processed_measurements"):
+    def find_measurements_peaks(self, schema="processed_measurements"):
         dates = mpi.API().unique_dates()
 
         for date in dates:
@@ -61,22 +62,10 @@ class Pipeline:
                 data=mpi.API().measurement([date]),
                 meta=mpi.API().meta_data([date]),
                 schema="processed_measurements",
-                nuclides=[
-                    "cs137",
-                    "co60",
-                    "i131",
-                    "tc99m",
-                    "ra226",
-                    "th232",
-                    "u238",
-                    "k40",
-                    "am241",
-                    "na22",
-                    "eu152",
-                    "eu154",
-                ],
+                nuclides=self.nuclides,
                 prominence=self.prominence,
                 tolerance=self.tolerance,
+                wlen=self.wlen,
                 nuclides_intensity=self.nuclide_intensity,
                 matching_ratio=self.matching_ratio,
                 interpolate_energy=self.interpolate_energy,
@@ -85,6 +74,7 @@ class Pipeline:
     def run(self,
             download_nuclides=False,
             prepare_measurements=False,
+            find_measurements_peaks=False,
             vae_training=False,
             generate_synthetics=False,
             ):
@@ -92,6 +82,8 @@ class Pipeline:
             self.download_nuclides()
         if prepare_measurements is True:
             self.prepare_measurements()
+        if find_measurements_peaks is True:
+            self.find_measurements_peaks()
         if vae_training is True:
             self.train_vae()
         if generate_synthetics is True:

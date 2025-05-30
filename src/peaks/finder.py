@@ -24,6 +24,7 @@ class PeakFinder(ppi.API):
         prominence=1000,
         width=None,
         rel_height=None,
+        wlen=None,
         matching_ratio=1 / 15,
         tolerance=0.5,
         schema="processed_measurements",
@@ -48,6 +49,7 @@ class PeakFinder(ppi.API):
         self.identified_peaks_idx = []
         self.prominence = prominence
         self.width = width
+        self.wlen = wlen
         self.rel_height = rel_height
         self.matching_ratio = matching_ratio
         self.tolerance = tolerance
@@ -167,7 +169,7 @@ class PeakFinder(ppi.API):
             if peak_confidence > self.tolerance:
                 matched.append(nuclide_id)
                 self.peak_confidences.append(peak_confidence)
-                print(
+                logging.warning(
                     f"Peak at {peak:2f} +- {std:2f} keV matched to {nuclide_id} at "
                     f"{energy} keV with confidence {peak_confidence:.2f}"
                 )
@@ -384,6 +386,7 @@ class PeakFinder(ppi.API):
             prominence=self.prominence,
             width=self.width,
             rel_height=self.rel_height,
+            wlen=self.wlen,
             **self.kwargs,
         )
 
@@ -396,53 +399,37 @@ class PeakFinder(ppi.API):
             c * p for c, p in zip(self.isotope_confidences, self.percentage_matched)
         ]
 
+        self.data = self.data.drop(columns=["counts_cleaned"])
+        self.data["peak"] = False
+        self.data["interpolated"] = self.interpolate_energy
+        self.data["total_confidence"] = 0.0
+        self.data["matched"] = 0.0
+        self.data["confidence"] = 0.0
+        self.data["identified_peak"] = 0.0
+        self.data["identified_isotope"] = ""
+
+        self.data.loc[self.identified_peaks_idx, "peak"] = True
+        self.data.loc[self.identified_peaks_idx, "total_confidence"] = (
+            total_confidences
+        )
+        self.data.loc[self.identified_peaks_idx, "matched"] = (
+            self.percentage_matched
+        )
+        self.data.loc[self.identified_peaks_idx, "confidence"] = (
+            self.isotope_confidences
+        )
+        self.data.loc[self.identified_peaks_idx, "identified_peak"] = (
+            self.identified_peaks
+        )
+        self.data.loc[self.identified_peaks_idx, "identified_isotope"] = (
+            self.identified_isotopes
+        )
+
+        if self.interpolate_energy is True:
+            self.__interpolation_process()
+
         if return_detailed_view is False:
-            self.data = self.data.drop(columns=["counts_cleaned"])
-            self.data["peak"] = False
-            self.data["interpolated"] = self.interpolate_energy
-            self.data["total_confidence"] = 0.0
-            self.data["matched"] = 0.0
-            self.data["confidence"] = 0.0
-            self.data["identified_peak"] = 0.0
-            self.data["identified_isotope"] = ""
-
-            self.data.loc[self.identified_peaks_idx, "peak"] = True
-            self.data.loc[self.identified_peaks_idx, "total_confidence"] = (
-                total_confidences
-            )
-            self.data.loc[self.identified_peaks_idx, "matched"] = (
-                self.percentage_matched
-            )
-            self.data.loc[self.identified_peaks_idx, "confidence"] = (
-                self.isotope_confidences
-            )
-            self.data.loc[self.identified_peaks_idx, "identified_peak"] = (
-                self.identified_peaks
-            )
-            self.data.loc[self.identified_peaks_idx, "identified_isotope"] = (
-                self.identified_isotopes
-            )
-
-            if self.interpolate_energy is True:
-                self.__interpolation_process()
-
             self.__safe_processed_spectrum()
+        else:
             return self.data
 
-        else:
-            return pd.DataFrame(
-                {
-                    "datetime": self.selected_date,
-                    "peaks": [peaks_idx],
-                    "peaks_polynomial": [self.polynomial(peaks_idx)],
-                    "fitted_peaks": [fitted_peaks],
-                    "fitted_peaks_mean": [unumpy.nominal_values(fitted_peaks)],
-                    "fitted_peaks_std": [unumpy.std_devs(fitted_peaks)],
-                    "identified_isotopes": [self.identified_isotopes],
-                    "identified_peaks": [self.identified_peaks],
-                    "identified_peaks_idx": [self.identified_peaks_idx],
-                    "confidences": [self.isotope_confidences],
-                    "matched": [self.percentage_matched],
-                    "total_confidences": [total_confidences],
-                }
-            )

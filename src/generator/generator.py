@@ -4,6 +4,7 @@ import torch
 from config.loader import load_config
 import os
 import pandas as pd
+import logging
 from src.peaks.finder import PeakFinder
 
 
@@ -18,6 +19,8 @@ class Generator:
         self.nuclide_intensity = load_config()["peakfinder"]["nuclide_intensity"]
         self.matching_ratio = float(load_config()["peakfinder"]["matching_ratio"])
         self.prominence = int(load_config()["peakfinder"]["prominence"])
+        self.nuclides = list(load_config()["peakfinder"]["nuclides"])
+        self.wlen = int(load_config()["peakfinder"]["wlen"])
         self.model = self.__load_model()
 
     def get_model(self):
@@ -38,6 +41,7 @@ class Generator:
         mlflow.set_tracking_uri(uri=self.model_uri)
         return mlflow.pytorch.load_model(f"models:/{self.model_name}/{self.model_version}").to(self.device)
 
+
     def __unscale(self, x_hat):
         min, max = self.get_min_max()
         return x_hat * (max - min) + min
@@ -46,36 +50,27 @@ class Generator:
         generator = self.generate(latent_space)
         sample_number = 0
         for energy_axis, generated_data in generator:
-            synthetic_data = pd.DataFrame([])
-            synthetic_data["energy"] = energy_axis
-            synthetic_data["datetime"] = f"synthetic_{sample_number}"
-            synthetic_data["count"] = generated_data
-            PeakFinder(
-                selected_date=f"synthetic_{sample_number}",
-                data=synthetic_data,
-                meta=None,
-                schema="processed_synthetics",
-                nuclides=[
-                    "cs137",
-                    "co60",
-                    "i131",
-                    "tc99m",
-                    "ra226",
-                    "th232",
-                    "u238",
-                    "k40",
-                    "am241",
-                    "na22",
-                    "eu152",
-                    "eu154",
-                ],
-                prominence=self.prominence,
-                tolerance=self.tolerance,
-                nuclides_intensity=self.nuclide_intensity,
-                matching_ratio=self.matching_ratio,
-                interpolate_energy=False,
-            ).process_spectrum(return_detailed_view=False)
-            sample_number += 1
+            try:
+                synthetic_data = pd.DataFrame([])
+                synthetic_data["energy"] = energy_axis
+                synthetic_data["datetime"] = f"synthetic_{sample_number}"
+                synthetic_data["count"] = generated_data
+                PeakFinder(
+                    selected_date=f"synthetic_{sample_number}",
+                    data=synthetic_data,
+                    meta=None,
+                    schema="processed_synthetics",
+                    nuclides=self.nuclides,
+                    prominence=self.prominence,
+                    tolerance=self.tolerance,
+                    wlen=self.wlen,
+                    nuclides_intensity=self.nuclide_intensity,
+                    matching_ratio=self.matching_ratio,
+                    interpolate_energy=False,
+                ).process_spectrum(return_detailed_view=False)
+                sample_number += 1
+            except Exception as e:
+                logging.warning(f"Could not process spectrum: {e}")
 
     def generate(self, latent_space):
         step_size = load_config()["measurements"]["step_size"]

@@ -8,6 +8,28 @@ vae:
   leanring_rate: 1e-3 # 1e-3 GOOD
   epochs: 500
 
+peakfinder:
+  tolerance: 0.60 # CONFIDANCE / TOLERANCE FOR PEAKS
+  nuclide_intensity: 10 # INTENSITY OF THE ENERGY
+  matching_ratio: 0.01 # MATCHED
+  interpolate_energy: True # RESCALING X-AXIS (ENERGY-AXIS)
+  prominence: 200 # PROBABLY 2000
+  wlen: 10
+  nuclides: [
+    "cs137",
+    "co60",
+    "i131",
+    "tc99m",
+    "ra226",
+    "th232",
+    "u238",
+    "k40",
+    "am241",
+    "na22",
+    "eu152",
+    "eu154",
+  ]
+
 measurements:
   number_of_channels: 8160
   step_size: 0.34507313512321336

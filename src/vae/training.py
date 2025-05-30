@@ -8,6 +8,7 @@ from src.vae.vae import VAE
 from torch.utils.data import DataLoader
 from src.vae.measurement import Measurement
 from config.loader import load_config
+import numpy as np
 import logging
 import os
 
@@ -49,7 +50,7 @@ class Training:
         best_model = VAE().to(self.configs["vae"]["device"])
         best_model.load_state_dict(self.best_model)
         best_model.eval()
-        used_data = mlflow.data.pandas_dataset.from_pandas(self.raw_dataset)
+        # used_data = mlflow.data.pandas_dataset.from_pandas(self.raw_dataset)
         mlflow.set_tracking_uri(uri=load_config()["mlflow"]["uri"])
         mlflow.set_registry_uri(uri=load_config()["mlflow"]["uri"])
         mlflow.set_experiment("SyntheticsVAE")
@@ -57,7 +58,7 @@ class Training:
         with mlflow.start_run(run_name="VAE"):
             print(f"artifact_uri={mlflow.get_artifact_uri()}")
             mlflow.log_dict({"used_keys": [str(i) for i in self.used_keys]}, "artifacts.json")
-            mlflow.log_text(self.raw_dataset.to_csv(), "dataset.csv")
+            # mlflow.log_text(self.raw_dataset.to_csv(), "dataset.csv")
             mlflow.log_param("architecture", "VAE")
             mlflow.log_param("input_dim", self.configs["vae"]["input_dim"])
             mlflow.log_param("hidden_dim", self.configs["vae"]["hidden_dim"])
@@ -86,9 +87,15 @@ class Training:
             for val_kl_divergence in self.validation_kl_divergence_history:
                 mlflow.log_metric("validation_kl_divergence", val_kl_divergence)
 
-            mlflow.log_input(used_data, "used_dataset")
+            # mlflow.log_input(used_data, "used_dataset")
             mlflow.pytorch.log_model(best_model, "model_cuda")
             mlflow.pytorch.log_model(best_model.to("cpu"), "model_cpu")
+
+    def __vae_loss(self, x, count_hat, mean, logvar):
+        reconstruction_loss_count = F.poisson_nll_loss(count_hat, x, log_input=False, reduction="sum")  # CROSS ENTROPY SHOULD BE TRIED OUT
+        kl_divergence = -0.5 * torch.sum(1 + torch.log(logvar.pow(2)) - mean.pow(2) - logvar.pow(2))  # PARETO
+        total_loss = reconstruction_loss_count + kl_divergence
+        return total_loss, reconstruction_loss_count, kl_divergence
 
     def __vae_validation(self):
         self.model.eval()
@@ -117,12 +124,6 @@ class Training:
         self.validation_reconstruction_loss_history.append(val_reconstruction_loss_count)
         self.validation_kl_divergence_history.append(val_kl_divergence)
         self.validation_loss_history.append(val_loss)
-
-    def __vae_loss(self, x, count_hat, mean, logvar):
-        reconstruction_loss_count = F.mse_loss(count_hat, x, reduction="sum")  # CROSS ENTROPY SHOULD BE TRIED OUT
-        kl_divergence = -0.5 * torch.sum(1 + torch.log(logvar.pow(2)) - mean.pow(2) - logvar.pow(2))  # PARETO
-        total_loss = reconstruction_loss_count + kl_divergence
-        return total_loss, reconstruction_loss_count, kl_divergence
 
     def vae_training(self):
         for epoch in range(self.configs["vae"]["epochs"]):

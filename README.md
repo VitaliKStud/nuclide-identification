@@ -3,6 +3,16 @@
 This repository is about to identify nuclides via neural network techniques for gamma-ray 
 measurements. 
 
+
+-- For datetime-based aggregations
+CREATE INDEX IF NOT EXISTS idx_processed_measurements_datetime ON processed_measurements(datetime);
+CREATE INDEX IF NOT EXISTS idx_processed_synthetics_datetime ON processed_synthetics(datetime);
+CREATE INDEX IF NOT EXISTS idx_measurements_datetime ON measurements(datetime);
+
+-- For filtering
+CREATE INDEX IF NOT EXISTS idx_processed_measurements_peak ON processed_measurements(peak);
+CREATE INDEX IF NOT EXISTS idx_processed_synthetics_peak ON processed_synthetics(peak);
+
 ---
 
 SELECT datetime,
@@ -15,6 +25,31 @@ SELECT datetime,
    FROM processed_measurements
   GROUP BY datetime
   ORDER BY datetime;
+
+
+
+SELECT 
+  'processed_measurements' AS source_table,
+  COUNT(peak) FILTER (WHERE peak = TRUE) AS peaks_detected,
+  COUNT(DISTINCT(datetime)) AS total_measurements
+FROM processed_measurements
+
+UNION ALL
+
+SELECT 
+  'processed_synthetics' AS source_table,
+  COUNT(peak) FILTER (WHERE peak = TRUE) AS peaks_detected,
+  COUNT(DISTINCT(datetime)) AS total_measurements
+FROM processed_synthetics
+
+UNION ALL
+
+SELECT 
+  'measurements' AS source_table,
+  NULL AS peaks_detected,
+  COUNT(DISTINCT(datetime)) AS total_measurements
+FROM measurements
+
 
 use --no-verify tag
 
