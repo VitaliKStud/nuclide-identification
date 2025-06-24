@@ -10,6 +10,7 @@ from sqlalchemy import text
 from scipy.interpolate import interp1d
 from config.loader import load_engine
 import src.peaks.api as ppi
+from config.loader import load_config
 
 
 class PeakFinder(ppi.API):
@@ -97,10 +98,12 @@ class PeakFinder(ppi.API):
             try:
                 x = np.arange(left_base, right_base)
                 # fallback to +-5 if the range is too small to fit or too large to be realistic
-                if len(x) <= 10:
-                    x = np.arange(peak - 5, peak + 5)
-                elif len(x) > 30:
-                    x = np.arange(peak - 5, peak + 5)
+                # if len(x) <= 10:
+                #     x = np.arange(peak - 5, peak + 5)
+                # elif len(x) > 30:
+                #     x = np.arange(peak - 5, peak + 5)
+                if len(x) <= 10 or len(x) > 30:
+                    x = np.arange(max(0, peak - 5), min(len(self.data), peak + 5))
                 y = self.data["counts_cleaned"].iloc[x]
                 popt, _ = curve_fit(
                     gaussian, x, y, p0=[y.max(), x.mean(), 1], maxfev=2000
@@ -152,6 +155,7 @@ class PeakFinder(ppi.API):
         """Calculate confidence score for peak matching an energy value."""
         # Use a Gaussian probability density function
         confidence = norm.pdf(energy, loc=peak, scale=std)
+        std = max(std, 1.0)
         # Normalize to [0,1] range
         confidence = confidence / norm.pdf(peak, loc=peak, scale=std)
         return confidence
@@ -207,6 +211,7 @@ class PeakFinder(ppi.API):
             zip(unumpy.nominal_values(fitted_peaks), unumpy.std_devs(fitted_peaks))
         ):
             for nuclide_id, nuclide_group in self.isotopes.groupby("nuclide_id"):
+                self.peak_confidences = []
                 matched = []
                 energies = nuclide_group["energy"].to_list()
                 self.__identify_isotopes_matches_and_confidence(
@@ -222,17 +227,37 @@ class PeakFinder(ppi.API):
 
                 elif len(matched) / len(energies) >= self.matching_ratio:
                     peak_idx = peaks_idx[idx]
-                    self.identified_isotopes.append(nuclide_id)
-                    self.isotope_confidences.append(np.mean(self.peak_confidences))
-                    self.percentage_matched.append(len(matched) / len(energies))
-                    self.identified_peaks.append(peak)
-                    self.identified_peaks_idx.append(peak_idx)
+                    match_ratio = len(matched) / len(energies)
+                    mean_confidence = np.mean(self.peak_confidences)
+                    # self.identified_isotopes.append(nuclide_id)
+                    # self.isotope_confidences.append(np.mean(self.peak_confidences))
+                    # self.percentage_matched.append(len(matched) / len(energies))
+                    # self.identified_peaks.append(peak)
+                    # self.identified_peaks_idx.append(peak_idx)
+                    if peak_idx in self.identified_peaks_idx:
+                        existing_idx = self.identified_peaks_idx.index(peak_idx)
+                        existing_conf = self.isotope_confidences[existing_idx]
+                        if mean_confidence > existing_conf:
+                            self.identified_isotopes[existing_idx] = nuclide_id
+                            self.isotope_confidences[existing_idx] = mean_confidence
+                            self.percentage_matched[existing_idx] = match_ratio
+                            self.identified_peaks[existing_idx] = peak
+                    else:
+                        self.identified_isotopes.append(nuclide_id)
+                        self.isotope_confidences.append(mean_confidence)
+                        self.percentage_matched.append(match_ratio)
+                        self.identified_peaks.append(peak)
+                        self.identified_peaks_idx.append(peak_idx)
 
     def __polynomial_f(self):
         if self.meta is None:
             self.data = self.data.sort_values(by="energy")
             x = self.data["energy"].to_numpy()
-            coef = np.polyfit(np.arange(0, 8160, 1), x, deg=3)
+            coef = np.polyfit(
+                np.arange(0, load_config()["measurements"]["number_of_channels"], 1),
+                x,
+                deg=3,
+            )
             logging.warning(f"Calculated Coefficients: {coef}")
             return lambda x: coef[-1] + coef[-2] * x + coef[-3] * x**2 + coef[-4] * x**3
 
@@ -293,7 +318,9 @@ class PeakFinder(ppi.API):
         )
 
     def __interpolate_spectrum(self, energy_original, counts_original):
-        energy_max = self.step_size * 8160
+        energy_max = (
+            self.step_size * load_config()["measurements"]["number_of_channels"]
+        )
         energy_axis = np.arange(0, energy_max, self.step_size)
         logging.warning(f"Max Interpolation Value for Energy: {energy_max}")
         f = interp1d(
@@ -379,6 +406,11 @@ class PeakFinder(ppi.API):
         """
 
         self.data = self.data.sort_values(by="energy").reset_index(drop=True)
+        # self.data["count"] = (self.data["count"] - self.data["count"].min()) / (self.data["count"].max() - self.data["count"].min())
+
+        std = self.data["count"].std()
+        mean = self.data["count"].mean()
+        self.data["count"] = (self.data["count"] - mean) / std
         self.data["background"] = self.__identify_background()
         self.data["counts_cleaned"] = self.data["count"] - self.data["background"]
         peaks_idx, properties = find_peaks(
@@ -407,14 +439,12 @@ class PeakFinder(ppi.API):
         self.data["confidence"] = 0.0
         self.data["identified_peak"] = 0.0
         self.data["identified_isotope"] = ""
+        self.data["count"] = self.data["count"] * std + mean  # RESCALE
+        self.data["background"] = self.data["background"] * std + mean  # RESCALE
 
         self.data.loc[self.identified_peaks_idx, "peak"] = True
-        self.data.loc[self.identified_peaks_idx, "total_confidence"] = (
-            total_confidences
-        )
-        self.data.loc[self.identified_peaks_idx, "matched"] = (
-            self.percentage_matched
-        )
+        self.data.loc[self.identified_peaks_idx, "total_confidence"] = total_confidences
+        self.data.loc[self.identified_peaks_idx, "matched"] = self.percentage_matched
         self.data.loc[self.identified_peaks_idx, "confidence"] = (
             self.isotope_confidences
         )
@@ -432,4 +462,3 @@ class PeakFinder(ppi.API):
             self.__safe_processed_spectrum()
         else:
             return self.data
-

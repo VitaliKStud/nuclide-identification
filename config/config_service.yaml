@@ -3,18 +3,20 @@ vae:
   input_dim: 8160
   hidden_dim: 512  # 512 GOOD
 #  second_hidden_dim: 128  # 128 GOOD
-  latent_dim: 24  # 24 GOOD
+  latent_dim: 256  # 24 GOOD
   batch_size: 8160
   leanring_rate: 1e-3 # 1e-3 GOOD
   epochs: 500
 
 peakfinder:
   tolerance: 0.60 # CONFIDANCE / TOLERANCE FOR PEAKS
-  nuclide_intensity: 10 # INTENSITY OF THE ENERGY
+  nuclide_intensity: 1 # INTENSITY OF THE ENERGY
   matching_ratio: 0.01 # MATCHED
   interpolate_energy: True # RESCALING X-AXIS (ENERGY-AXIS)
-  prominence: 200 # PROBABLY 2000
-  wlen: 10
+  prominence: 1 # PROBABLY 2000, AFTER Z-SCALING NEEDS 0.4~
+  width: 7
+  rel_height: 5
+  wlen: 8
   nuclides: [
     "cs137",
     "co60",
@@ -28,6 +30,7 @@ peakfinder:
     "na22",
     "eu152",
     "eu154",
+    "cs145"
   ]
 
 measurements:

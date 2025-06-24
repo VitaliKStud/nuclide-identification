@@ -14,6 +14,12 @@ class API:
             sql='SELECT DISTINCT("nuclide_id") FROM nuclide.nuclide', con=self.engine
         )["nuclide_id"].to_list()
 
+    def all_nuclides(self):
+        query = f"""
+            SELECT * FROM nuclide.nuclide
+            """
+        return pd.read_sql(sql=query, con=self.engine)
+
     def nuclides(self, nuclide_ids="all", intensity=0):
         if len(nuclide_ids) > 1 and nuclide_ids != "all":
             nuclide_ids = tuple(nuc_id for nuc_id in nuclide_ids)
@@ -80,7 +86,9 @@ class API:
         """
         return pd.read_sql(sql=query, con=self.engine)
 
-    def nuclides_by_intensity_and_min_max_energy(self, intensity, min_energy, max_energy):
+    def nuclides_by_intensity_and_min_max_energy(
+        self, intensity, min_energy, max_energy
+    ):
         query = f"""
         SELECT
             "nuclide_id", 
@@ -97,4 +105,3 @@ class API:
         ORDER BY "nuclide_id", "intensity" DESC
         """
         return pd.read_sql(sql=query, con=self.engine)
-

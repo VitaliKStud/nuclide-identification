@@ -17,7 +17,13 @@ class VAE(nn.Module):
         self.encoder = nn.Sequential(
             nn.Linear(configs["vae"]["input_dim"], configs["vae"]["hidden_dim"]),
             nn.ReLU(),
-            nn.Linear(configs["vae"]["hidden_dim"], configs["vae"]["latent_dim"]),
+            nn.Linear(
+                configs["vae"]["hidden_dim"], configs["vae"]["second_hidden_dim"]
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                configs["vae"]["second_hidden_dim"], configs["vae"]["latent_dim"]
+            ),
             nn.ReLU(),
         )
 
@@ -30,7 +36,7 @@ class VAE(nn.Module):
 
         self.decoder_energy = nn.Linear(
             configs["vae"]["latent_dim"], configs["vae"]["input_dim"]
-        ) # DEPRICATED, ENERGY INTERPOLATED
+        )  # DEPRICATED, ENERGY INTERPOLATED
 
         self.mean_layer = nn.Linear(
             configs["vae"]["latent_dim"], configs["vae"]["latent_dim"]

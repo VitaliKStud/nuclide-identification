@@ -1,11 +1,13 @@
 import mlflow
 import numpy as np
 import torch
-from config.loader import load_config
+from config.loader import load_config, load_engine
 import os
 import pandas as pd
 import logging
 from src.peaks.finder import PeakFinder
+import src.measurements.api as mpi
+import src.peaks.api as ppi
 
 
 class Generator:
@@ -21,13 +23,19 @@ class Generator:
         self.prominence = int(load_config()["peakfinder"]["prominence"])
         self.nuclides = list(load_config()["peakfinder"]["nuclides"])
         self.wlen = int(load_config()["peakfinder"]["wlen"])
+        self.rel_height = int(load_config()["peakfinder"]["rel_height"])
+        self.width = int(load_config()["peakfinder"]["width"])
         self.model = self.__load_model()
+        self.engine = load_engine()
+        self.min, self.max = self.get_min_max()
 
     def get_model(self):
         return self.model
 
     def get_min_max(self):
-        client = mlflow.tracking.MlflowClient(tracking_uri=load_config()["mlflow"]["uri"])
+        client = mlflow.tracking.MlflowClient(
+            tracking_uri=load_config()["mlflow"]["uri"]
+        )
         run_id = client.get_latest_versions("VAE_CPU")[0].run_id
         run = client.get_run(run_id)
         min = float(run.data.params["min"])
@@ -36,38 +44,99 @@ class Generator:
 
     def __load_model(self):
         os.environ["AWS_ACCESS_KEY_ID"] = load_config()["minio"]["AWS_ACCESS_KEY_ID"]
-        os.environ["AWS_SECRET_ACCESS_KEY"] = load_config()["minio"]["AWS_SECRET_ACCESS_KEY"]
-        os.environ["MLFLOW_S3_ENDPOINT_URL"] = load_config()["minio"]["MLFLOW_S3_ENDPOINT_URL"]
+        os.environ["AWS_SECRET_ACCESS_KEY"] = load_config()["minio"][
+            "AWS_SECRET_ACCESS_KEY"
+        ]
+        os.environ["MLFLOW_S3_ENDPOINT_URL"] = load_config()["minio"][
+            "MLFLOW_S3_ENDPOINT_URL"
+        ]
         mlflow.set_tracking_uri(uri=self.model_uri)
-        return mlflow.pytorch.load_model(f"models:/{self.model_name}/{self.model_version}").to(self.device)
-
+        logging.warning(f"Model: {self.model_name}, ModelVersion: {self.model_version}")
+        return mlflow.pytorch.load_model(
+            f"models:/{self.model_name}/{self.model_version}"
+        ).to(self.device)
 
     def __unscale(self, x_hat):
-        min, max = self.get_min_max()
-        return x_hat * (max - min) + min
+        return x_hat * (self.max - self.min) + self.min
+
+    def scale(self, x):
+        return ((x - self.min) / (self.max - self.min)) + 1e-8
+
+    def __generate_latent_space_from_measurements(self):
+        all_latents = []
+        all_datetimes = []
+        splitted_keys = mpi.API().splitted_keys()
+        keys_for_generation = (
+            splitted_keys.loc[splitted_keys["type"] == "cnn_training"]
+            .reset_index(drop=True)["datetime"]
+            .tolist()
+        )
+        measurements = ppi.API().measurement(keys_for_generation)
+        for group in measurements.groupby("datetime"):
+            datetime = group[0]
+            all_datetimes.append(str(datetime))
+            measurement = group[1].sort_values(by="energy")[["energy", "count"]]
+            x = self.scale(
+                torch.tensor(
+                    measurement[["energy", "count"]].values, dtype=torch.float
+                )[:, 1].to(self.device)
+            )
+            mean, log_var = self.model.encode(x)
+            latent_space = (
+                self.model.reparameterize(mean, log_var).to("cpu").detach().numpy()
+            )
+            all_latents.append(latent_space)
+        return all_latents, all_datetimes
 
     def process(self, latent_space):
+        all_datetimes = None
+        if latent_space is None:
+            latent_space, all_datetimes = (
+                self.__generate_latent_space_from_measurements()
+            )
         generator = self.generate(latent_space)
         sample_number = 0
-        for energy_axis, generated_data in generator:
+        for energy_axis, generated_data, latent_z in generator:
             try:
+                if all_datetimes is not None:
+                    datetime = all_datetimes[sample_number]
+                else:
+                    datetime = ""
                 synthetic_data = pd.DataFrame([])
                 synthetic_data["energy"] = energy_axis
-                synthetic_data["datetime"] = f"synthetic_{sample_number}"
+                synthetic_data["datetime"] = f"synthetic_{sample_number}_{datetime}"
                 synthetic_data["count"] = generated_data
+                synthetic_data["datetime_from_measurement"] = datetime
                 PeakFinder(
-                    selected_date=f"synthetic_{sample_number}",
+                    selected_date=f"synthetic_{sample_number}_{datetime}",
                     data=synthetic_data,
                     meta=None,
                     schema="processed_synthetics",
                     nuclides=self.nuclides,
                     prominence=self.prominence,
                     tolerance=self.tolerance,
+                    width=self.width,
                     wlen=self.wlen,
+                    rel_height=self.rel_height,
                     nuclides_intensity=self.nuclide_intensity,
                     matching_ratio=self.matching_ratio,
                     interpolate_energy=False,
                 ).process_spectrum(return_detailed_view=False)
+
+                columns = ["datetime", "datetime_from_measurement"] + [
+                    i for i in range(len(latent_z))
+                ]
+                latent_data = pd.DataFrame(
+                    [[f"synthetic_{sample_number}"] + [datetime] + list(latent_z)],
+                    columns=columns,
+                )
+                latent_data.to_sql(
+                    "processed_synthetics_latent_space",
+                    self.engine,
+                    if_exists="append",
+                    index=False,
+                    schema="measurements",
+                )
                 sample_number += 1
             except Exception as e:
                 logging.warning(f"Could not process spectrum: {e}")
@@ -80,4 +149,4 @@ class Generator:
         for z in latent_space:
             z_torch = torch.from_numpy(z).to(self.device)
             x_hat = self.model.decode(z_torch).to("cpu").detach().numpy()
-            yield energy_axis, self.__unscale(x_hat)
+            yield energy_axis, self.__unscale(x_hat), z

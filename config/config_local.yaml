@@ -2,19 +2,44 @@ vae:
   device: cuda
   input_dim: 8160
   hidden_dim: 512  # 512 GOOD
-  #  second_hidden_dim: 128  # 128 GOOD
+  second_hidden_dim: 256  # 128 GOOD
   latent_dim: 24  # 24 GOOD
   batch_size: 2
   learning_rate: 1e-3 # 1e-3 GOOD
   epochs: 100
 
+generator:
+  number_of_samples: 10000
+  min_space: -2.5
+  max_space: 2.5
+
+cnn:
+  device: cuda
+  input_dim: 1 # One Measurement per Input (with 8160 Channels)
+  first_layer: 1020
+  second_layer: 510
+  third_layer: 205
+  fourth_layer: 100
+  fc_first_layer: 50
+  max_pool: 2
+  adaptive_pool: 1
+  use_processed_measurements: False
+  use_processed_synthetics: True
+
+splitter:
+  vae: { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20, "6": 10 } # Distribution to split identified isotopes as a training/test dataset
+  cnn_validation: { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20, "6": 10 } # Distribution for Validation Dataset
+  max_isotopes_per_measurement: 6
+
 peakfinder:
   tolerance: 0.60 # CONFIDANCE / TOLERANCE FOR PEAKS
-  nuclide_intensity: 10 # INTENSITY OF THE ENERGY
+  nuclide_intensity: 1 # INTENSITY OF THE ENERGY
   matching_ratio: 0.01 # MATCHED
   interpolate_energy: True # RESCALING X-AXIS (ENERGY-AXIS)
-  prominence: 200 # PROBABLY 2000
-  wlen: 10
+  prominence: 1 # PROBABLY 2000, AFTER Z-SCALING NEEDS 0.4~
+  width: 7
+  rel_height: 5
+  wlen: 8
   nuclides: [
     "cs137",
     "co60",
@@ -28,6 +53,7 @@ peakfinder:
     "na22",
     "eu152",
     "eu154",
+    "cs145"
   ]
 
 measurements:

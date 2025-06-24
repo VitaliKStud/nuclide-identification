@@ -18,16 +18,14 @@ sidebar = dbc.Col(
             value=ppi.API().unique_dates()[0],
             multi=False,
         ),
-
         html.Br(),
-
         html.H6("Select a processed Synthetic-Data", style={"color": "lightgrey"}),
-            dcc.Dropdown(
-                id="checklist_synthetics",
-                options=[{"label": f, "value": f} for f in spi.API().unique_dates()],
-                value=spi.API().unique_dates()[0],
-                multi=False,
-            ),
+        dcc.Dropdown(
+            id="checklist_synthetics",
+            options=[{"label": f, "value": f} for f in spi.API().unique_dates()],
+            value=spi.API().unique_dates()[0],
+            multi=False,
+        ),
     ],
     style={
         "position": "fixed",
@@ -44,10 +42,7 @@ sidebar = dbc.Col(
 content = dbc.Col(
     [
         dbc.Row(dcc.Graph(id="graph2")),
-        dbc.Row([
-            dcc.Graph(id="graph3"),
-            html.Div(id="output")
-        ])
+        dbc.Row([dcc.Graph(id="graph3"), html.Div(id="output")]),
     ],
     style={
         "marginLeft": "370px",  # slightly more than sidebar width
@@ -56,11 +51,7 @@ content = dbc.Col(
     },
 )
 
-layout = dbc.Container(
-    dbc.Row([sidebar, content]),
-    fluid=True,
-    style={"padding": 0}
-)
+layout = dbc.Container(dbc.Row([sidebar, content]), fluid=True, style={"padding": 0})
 
 
 @callback(Output("output", "children"), Input("checklist", "value"))
@@ -98,7 +89,19 @@ def update_combined_chart(file_id):
                 zorder=10,
             )
         )
-        unique_isotopes = file_data.loc[file_data["peak"] == 1]["identified_isotope"].unique()
+        file_data["cleaned_data"] = file_data["count"] - file_data["background"]
+        fig.add_trace(
+            go.Scatter(
+                x=file_data["energy"],
+                y=file_data["cleaned_data"],
+                mode="lines",
+                name=f"{datetime.fromisoformat(file_id)} - Background",
+                zorder=10,
+            )
+        )
+        unique_isotopes = file_data.loc[file_data["peak"] == 1][
+            "identified_isotope"
+        ].unique()
         color_palette = px.colors.qualitative.Dark24
         isotope_color_map = {
             isotope: color_palette[i % len(color_palette)]
@@ -123,13 +126,7 @@ def update_combined_chart(file_id):
         xaxis_title="Energy",
         yaxis_title="Count",
         barmode="overlay",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     fig.update_yaxes(type="linear")
     return fig
@@ -162,7 +159,9 @@ def update_combined_chart_synt(file_id):
                 zorder=10,
             )
         )
-        unique_isotopes = file_data.loc[file_data["peak"] == 1]["identified_isotope"].unique()
+        unique_isotopes = file_data.loc[file_data["peak"] == 1][
+            "identified_isotope"
+        ].unique()
         color_palette = px.colors.qualitative.Dark24
         isotope_color_map = {
             isotope: color_palette[i % len(color_palette)]
@@ -187,13 +186,7 @@ def update_combined_chart_synt(file_id):
         xaxis_title="Energy",
         yaxis_title="Count / Intensity",
         barmode="overlay",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     fig.update_yaxes(type="linear")
     return fig

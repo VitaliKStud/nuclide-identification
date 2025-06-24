@@ -14,10 +14,19 @@ latent_dim = load_config()["vae"]["latent_dim"]
 
 register_page(__name__, "/generator", title="Generator")
 
-latent_dim_sliders = [dcc.Slider(-10.0, 10.0, 0.1, value=random.uniform(-1, 1), id=f"latent-dim:{dim}",
-                                tooltip={"placement": "bottom", "always_visible": True},
-                                marks={i: '{}'.format(i) for i in range(-10, 11, 2)},
-                                updatemode="drag") for dim in range(latent_dim)]
+latent_dim_sliders = [
+    dcc.Slider(
+        -10.0,
+        10.0,
+        0.1,
+        value=random.uniform(-1, 1),
+        id=f"latent-dim:{dim}",
+        tooltip={"placement": "bottom", "always_visible": True},
+        marks={i: "{}".format(i) for i in range(-10, 11, 2)},
+        updatemode="drag",
+    )
+    for dim in range(latent_dim)
+]
 
 sidebar = dbc.Col(
     [
@@ -46,14 +55,9 @@ content = dbc.Col(
         "padding": "20px",
         "height": "100vh",
     },
-
 )
 
-layout = dbc.Container(
-    dbc.Row([sidebar, content]),
-    fluid=True,
-    style={"padding": 0}
-)
+layout = dbc.Container(dbc.Row([sidebar, content]), fluid=True, style={"padding": 0})
 
 
 # Callback to update chart and table based on user input
@@ -72,7 +76,7 @@ def update_generator_plot(*generator_slider):
     gen = generator.generate(latent_space=latent_space)
 
     fig = go.Figure()
-    for energy_axis, generated_data in gen:
+    for energy_axis, generated_data, z_latent_space in gen:
         fig.add_trace(
             go.Scatter(
                 x=energy_axis,

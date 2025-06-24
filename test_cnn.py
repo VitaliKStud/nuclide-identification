@@ -9,9 +9,10 @@ from src.peaks.api import API as ppi
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import f1_score, precision_score, recall_score
+import src.statistics.api as spi
 
 dates = ppi().unique_dates()
-dataset = ppi().measurement(dates[0:1000])
+dataset = ppi().measurement(dates[0:500])
 
 
 def normalize_spectrum(df):
@@ -38,10 +39,17 @@ grouped_labels = dataset.groupby("datetime")["identified_isotope"].apply(
 )
 
 
-# Apply MultiLabelBinarizer to convert to binary matrix
+isotopes = spi.API().view_identified_isotopes()
+isos = isotopes.loc[isotopes["identified_isotopes"] != ""][
+    "identified_isotopes"
+].tolist()
+unique_isos = list(set(isos))
+base_classes = [s.split(",") for s in isos]
 mlb = MultiLabelBinarizer()
-y_labels = mlb.fit_transform(grouped_labels)
-print("Classes:", mlb.classes_)
+mlb.fit(base_classes)
+print("Known classes:", mlb.classes_)
+new_data = [["am241", "co60"], ["cs137", "am241"]]  # New samples
+new_labels = mlb.transform(new_data)
 
 
 # For multi-class, no reshaping to (N, 8160) is necessary
