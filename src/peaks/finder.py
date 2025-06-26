@@ -15,22 +15,22 @@ from config.loader import load_config
 
 class PeakFinder(ppi.API):
     def __init__(
-        self,
-        selected_date,
-        nuclides,
-        nuclides_intensity,
-        data=None,
-        meta=None,
-        interpolate_energy=True,
-        prominence=1000,
-        width=None,
-        rel_height=None,
-        wlen=None,
-        matching_ratio=1 / 15,
-        tolerance=0.5,
-        schema="processed_measurements",
-        step_size=0.34507313512321336,
-        **kwargs,
+            self,
+            selected_date,
+            nuclides,
+            nuclides_intensity,
+            data=None,
+            meta=None,
+            interpolate_energy=True,
+            prominence=1000,
+            width=None,
+            rel_height=None,
+            wlen=None,
+            matching_ratio=1 / 15,
+            tolerance=0.5,
+            schema="processed_measurements",
+            step_size=0.34507313512321336,
+            **kwargs,
     ):
         super().__init__()
         self.engine = load_engine()
@@ -48,6 +48,7 @@ class PeakFinder(ppi.API):
         self.percentage_matched = []
         self.identified_peaks = []
         self.identified_peaks_idx = []
+        self.compton_edge_idx = []
         self.prominence = prominence
         self.width = width
         self.wlen = wlen
@@ -87,13 +88,13 @@ class PeakFinder(ppi.API):
         warnings.filterwarnings("ignore", category=OptimizeWarning)
 
         def gaussian(x, a, x0, sigma):
-            return a * np.exp(-((x - x0) ** 2) / (2 * sigma**2))
+            return a * np.exp(-((x - x0) ** 2) / (2 * sigma ** 2))
 
         fitted_peak_mean = []
         fitted_peak_std = []
 
         for peak, left_base, right_base in zip(
-            peaks, properties["left_bases"], properties["right_bases"]
+                peaks, properties["left_bases"], properties["right_bases"]
         ):
             try:
                 x = np.arange(left_base, right_base)
@@ -114,7 +115,16 @@ class PeakFinder(ppi.API):
                 fitted_peak_mean.append(0)
                 fitted_peak_std.append(1)
         fitted_peaks = unumpy.uarray(fitted_peak_mean, fitted_peak_std)
-        return self.polynomial(fitted_peaks)
+        pols = self.polynomial(fitted_peaks)
+        compton_edges = self.calculate_compton_effect(pols)
+        return pols, compton_edges
+
+    def calculate_compton_effect(self, pols):
+        compton_edges = []
+        for peak in pols:
+            compton_edges.append(peak - (peak / (1 + (2 * peak / 511))))
+        return np.array(compton_edges)
+
 
     def __identify_background(self, wndw: int = 5, scale: float = 1.5) -> np.ndarray:
         """
@@ -161,12 +171,12 @@ class PeakFinder(ppi.API):
         return confidence
 
     def __identify_isotopes_matches_and_confidence(
-        self,
-        energies,
-        peak,
-        std,
-        matched,
-        nuclide_id,
+            self,
+            energies,
+            peak,
+            std,
+            matched,
+            nuclide_id,
     ):
         for energy in energies:
             peak_confidence = self.__calculate_confidence(peak, energy, std)
@@ -179,7 +189,7 @@ class PeakFinder(ppi.API):
                 )
 
     def __identify_isotopes(
-        self, fitted_peaks: unumpy.uarray, peaks_idx: np.array = None
+            self, fitted_peaks: unumpy.uarray, peaks_idx: np.array = None, compton_edges=np.array
     ):
         """
         Identify isotopes based on fitted peak energies.
@@ -208,7 +218,7 @@ class PeakFinder(ppi.API):
         """
 
         for idx, (peak, std) in enumerate(
-            zip(unumpy.nominal_values(fitted_peaks), unumpy.std_devs(fitted_peaks))
+                zip(unumpy.nominal_values(fitted_peaks), unumpy.std_devs(fitted_peaks))
         ):
             for nuclide_id, nuclide_group in self.isotopes.groupby("nuclide_id"):
                 self.peak_confidences = []
@@ -229,11 +239,6 @@ class PeakFinder(ppi.API):
                     peak_idx = peaks_idx[idx]
                     match_ratio = len(matched) / len(energies)
                     mean_confidence = np.mean(self.peak_confidences)
-                    # self.identified_isotopes.append(nuclide_id)
-                    # self.isotope_confidences.append(np.mean(self.peak_confidences))
-                    # self.percentage_matched.append(len(matched) / len(energies))
-                    # self.identified_peaks.append(peak)
-                    # self.identified_peaks_idx.append(peak_idx)
                     if peak_idx in self.identified_peaks_idx:
                         existing_idx = self.identified_peaks_idx.index(peak_idx)
                         existing_conf = self.isotope_confidences[existing_idx]
@@ -242,12 +247,18 @@ class PeakFinder(ppi.API):
                             self.isotope_confidences[existing_idx] = mean_confidence
                             self.percentage_matched[existing_idx] = match_ratio
                             self.identified_peaks[existing_idx] = peak
+                            if (peak - compton_edges).min() <= 5 and (peak - compton_edges).min() >= -5:
+                                self.compton_edge_idx.append(peak_idx)
+                                logging.warning(f"Found Compton Edge for peak at: {peak} keV")
                     else:
                         self.identified_isotopes.append(nuclide_id)
                         self.isotope_confidences.append(mean_confidence)
                         self.percentage_matched.append(match_ratio)
                         self.identified_peaks.append(peak)
                         self.identified_peaks_idx.append(peak_idx)
+                        if (peak - compton_edges).min() <= 5 and (peak - compton_edges).min() >= -5:
+                            self.compton_edge_idx.append(peak_idx)
+                            logging.warning(f"Found Compton Edge for peak at: {peak} keV")
 
     def __polynomial_f(self):
         if self.meta is None:
@@ -259,14 +270,14 @@ class PeakFinder(ppi.API):
                 deg=3,
             )
             logging.warning(f"Calculated Coefficients: {coef}")
-            return lambda x: coef[-1] + coef[-2] * x + coef[-3] * x**2 + coef[-4] * x**3
+            return lambda x: coef[-1] + coef[-2] * x + coef[-3] * x ** 2 + coef[-4] * x ** 3
 
         else:
             return (
                 lambda x: self.meta["coef_1"][0]
-                + self.meta["coef_2"][0] * x
-                + self.meta["coef_3"][0] * x**2
-                + self.meta["coef_4"][0] * x**3
+                          + self.meta["coef_2"][0] * x
+                          + self.meta["coef_3"][0] * x ** 2
+                          + self.meta["coef_4"][0] * x ** 3
             )
 
     def __safe_processed_spectrum(self):
@@ -319,7 +330,7 @@ class PeakFinder(ppi.API):
 
     def __interpolate_spectrum(self, energy_original, counts_original):
         energy_max = (
-            self.step_size * load_config()["measurements"]["number_of_channels"]
+                self.step_size * load_config()["measurements"]["number_of_channels"]
         )
         energy_axis = np.arange(0, energy_max, self.step_size)
         logging.warning(f"Max Interpolation Value for Energy: {energy_max}")
@@ -357,8 +368,8 @@ class PeakFinder(ppi.API):
         self.data["energy"] = self.data["energy"].round(3)
 
     def process_spectrum(
-        self,
-        return_detailed_view: bool = False,
+            self,
+            return_detailed_view: bool = False,
     ) -> pd.DataFrame:
         """
         Processes a gamma spectrum file and identifies peaks.
@@ -422,10 +433,11 @@ class PeakFinder(ppi.API):
             **self.kwargs,
         )
 
-        fitted_peaks = self.__fit_gaussian(peaks=peaks_idx, properties=properties)
+        fitted_peaks, compton_edges = self.__fit_gaussian(peaks=peaks_idx, properties=properties)
         self.__identify_isotopes(
             fitted_peaks=fitted_peaks,
             peaks_idx=peaks_idx,
+            compton_edges=compton_edges
         )
         total_confidences = [
             c * p for c, p in zip(self.isotope_confidences, self.percentage_matched)
@@ -433,6 +445,7 @@ class PeakFinder(ppi.API):
 
         self.data = self.data.drop(columns=["counts_cleaned"])
         self.data["peak"] = False
+        self.data["compton_edge"] = False
         self.data["interpolated"] = self.interpolate_energy
         self.data["total_confidence"] = 0.0
         self.data["matched"] = 0.0
@@ -443,6 +456,8 @@ class PeakFinder(ppi.API):
         self.data["background"] = self.data["background"] * std + mean  # RESCALE
 
         self.data.loc[self.identified_peaks_idx, "peak"] = True
+        self.data.loc[self.compton_edge_idx, "peak"] = False
+        self.data.loc[self.compton_edge_idx, "compton_edge"] = True
         self.data.loc[self.identified_peaks_idx, "total_confidence"] = total_confidences
         self.data.loc[self.identified_peaks_idx, "matched"] = self.percentage_matched
         self.data.loc[self.identified_peaks_idx, "confidence"] = (

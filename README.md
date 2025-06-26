@@ -1,5 +1,15 @@
 # nuclide-identification
 
+TODO:
+BASELINE RANDOM FOREST FÜR DETECTOR
+Nur Ausgangsdaten -> Performance am Ende | Wie viele für Synthetische und verteilen
+Ausgangsdaten + GenData -> ...
+Nur GenData -> ... | WIE VIELE FÜR PERFORMANCE 100...200...300? 100.000 200.000 300.000
+Gradienten-Plots und Entwicklung
+Synthetic mit Ausgangsdaten vergleichen, aber GLEICHE Anzahl-SAMPLES -> Ähnlichkeit?
+Hypothesentest
+Dashboard und rest minimal erwähne
+
 This repository is about to identify nuclides via neural network techniques for gamma-ray 
 measurements. 
 

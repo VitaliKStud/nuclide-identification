@@ -39,7 +39,7 @@ class Training:
         self.splitted_keys = mpi.API().splitted_keys()
 
         if self.use_processed_synthetics:
-            self.synthetic_keys = vpi.API().unique_dates()[0:1001]
+            self.synthetic_keys = vpi.API().unique_dates()[0:1500]
             self.len_synthetics = len(self.synthetic_keys)
         self.keys_cnn_training, self.keys_cnn_validation = self.__get_processed_keys()
 
@@ -227,6 +227,7 @@ class Training:
             average=None,
         )
         mean = np.nanmean(macro_roc_auc_ovr)
+        print(f"LOSS :{mean}")
         self.validation_loss_history.append(mean)
         if mean > self.best_validation_loss:
             self.best_validation_loss = mean

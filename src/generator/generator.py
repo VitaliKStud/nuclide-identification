@@ -74,18 +74,19 @@ class Generator:
         measurements = ppi.API().measurement(keys_for_generation)
         for group in measurements.groupby("datetime"):
             datetime = group[0]
-            all_datetimes.append(str(datetime))
             measurement = group[1].sort_values(by="energy")[["energy", "count"]]
-            x = self.scale(
-                torch.tensor(
-                    measurement[["energy", "count"]].values, dtype=torch.float
-                )[:, 1].to(self.device)
-            )
-            mean, log_var = self.model.encode(x)
-            latent_space = (
-                self.model.reparameterize(mean, log_var).to("cpu").detach().numpy()
-            )
-            all_latents.append(latent_space)
+            for i in range(11):
+                all_datetimes.append(str(datetime))
+                x = self.scale(
+                    torch.tensor(
+                        measurement[["energy", "count"]].values, dtype=torch.float
+                    )[:, 1].to(self.device)
+                )
+                mean, log_var = self.model.encode(x)
+                latent_space = (
+                    self.model.reparameterize(mean, log_var).to("cpu").detach().numpy()
+                )
+                all_latents.append(latent_space)
         return all_latents, all_datetimes
 
     def process(self, latent_space):

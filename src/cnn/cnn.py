@@ -30,17 +30,17 @@ class CNN(nn.Module):
             kernel_size=5,
         )
         self.bn3 = nn.BatchNorm1d(self.config_loader["cnn"]["third_layer"])
-        self.pool3 = nn.MaxPool1d(self.config_loader["cnn"]["max_pool"])
+        self.pool3 = nn.AdaptiveAvgPool1d(self.config_loader["cnn"]["adaptive_pool"])
 
-        self.conv4 = nn.Conv1d(
-            self.config_loader["cnn"]["third_layer"],
-            self.config_loader["cnn"]["fourth_layer"],
-            kernel_size=5,
-        )
-        self.bn4 = nn.BatchNorm1d(self.config_loader["cnn"]["fourth_layer"])
-        self.pool4 = nn.AdaptiveAvgPool1d(self.config_loader["cnn"]["adaptive_pool"])
+        # self.conv4 = nn.Conv1d(
+        #     self.config_loader["cnn"]["third_layer"],
+        #     self.config_loader["cnn"]["fourth_layer"],
+        #     kernel_size=5,
+        # )
+        # self.bn4 = nn.BatchNorm1d(self.config_loader["cnn"]["fourth_layer"])
+        # self.pool4 = nn.AdaptiveAvgPool1d(self.config_loader["cnn"]["adaptive_pool"])
 
-        self.fc1 = nn.Linear(self.config_loader["cnn"]["fourth_layer"] * 1, num_classes)
+        self.fc1 = nn.Linear(self.config_loader["cnn"]["third_layer"] * 1, num_classes)
         self.dropout = nn.Dropout(0.5)
         # self.fc2 = nn.Linear(self.config_loader["cnn"]["fourth_layer"], num_classes)  # Multi-class output
 
@@ -48,7 +48,7 @@ class CNN(nn.Module):
         x = self.pool1(F.relu(self.bn1(self.conv1(x))))
         x = self.pool2(F.relu(self.bn2(self.conv2(x))))
         x = self.pool3(F.relu(self.bn3(self.conv3(x))))
-        x = self.pool4(F.relu(self.bn4(self.conv4(x))))
+        # x = self.pool4(F.relu(self.bn4(self.conv4(x))))
         x = x.view(x.size(0), -1)  # Flatten
         x = self.dropout(F.relu(self.fc1(x)))
         # x = self.fc2(x)
