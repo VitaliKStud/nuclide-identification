@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from src.vae.measurement import Measurement
 from config.loader import load_config
 import numpy as np
+
 import logging
 import os
 
@@ -92,7 +93,7 @@ class Training:
             mlflow.pytorch.log_model(best_model.to("cpu"), "model_cpu")
 
     def __vae_loss(self, x, count_hat, mean, logvar):
-        reconstruction_loss_count = F.poisson_nll_loss(count_hat, x, log_input=False, reduction="sum")  # CROSS ENTROPY SHOULD BE TRIED OUT
+        reconstruction_loss_count = F.poisson_nll_loss(count_hat, x, log_input=False, reduction="sum")  # BECAUSE of 0,1,2,3,4,5 discrete values
         kl_divergence = -0.5 * torch.sum(1 + torch.log(logvar.pow(2)) - mean.pow(2) - logvar.pow(2))  # PARETO
         total_loss = reconstruction_loss_count + kl_divergence
         return total_loss, reconstruction_loss_count, kl_divergence

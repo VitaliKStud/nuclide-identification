@@ -3,7 +3,7 @@ vae:
   input_dim: 8160
   hidden_dim: 512  # 512 GOOD
 #  second_hidden_dim: 128  # 128 GOOD
-  latent_dim: 256  # 24 GOOD
+  latent_dim: 24  # 24 GOOD
   batch_size: 8160
   leanring_rate: 1e-3 # 1e-3 GOOD
   epochs: 500

@@ -1,4 +1,4 @@
-from src.cnn.dataset import MeasurementTraining, MeasurementValidation
+from src.cnn.dataset import MeasurementTraining
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from src.cnn.cnn import CNN
@@ -17,50 +17,86 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import random
+from sklearn.metrics import roc_curve, auc
 
 
 class Training:
     def __init__(
-        self,
-        use_processed_measuremnets=True,
-        use_processed_synthetics=False,
-        chunk_ps=2000,
+            self,
+            use_processed_measuremnets=True,
+            use_processed_synthetics=False,
+            use_re_processed_data=False,
+            chunk_ps=500,
     ):
         self.use_processed_measuremnets = use_processed_measuremnets
         self.use_processed_synthetics = use_processed_synthetics
+        self.use_re_processed_data = use_re_processed_data
         self.configs = load_config()
 
         self.mlb = self.__get_mlb_fitter()
         self.model = CNN(num_classes=len(self.mlb.classes_)).to("cuda")
         self.criterion = nn.BCEWithLogitsLoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.005)
         self.chunk_ps = chunk_ps
 
-        self.splitted_keys = mpi.API().splitted_keys()
+        if self.use_re_processed_data is True:
+            logging.warning("LOADING RESPLITTED KEYS")
+            self.splitted_keys = mpi.API().re_splitted_keys()
+        else:
+            logging.warning("LOADING SPLITTED KEYS")
+            self.splitted_keys = mpi.API().splitted_keys()
 
         if self.use_processed_synthetics:
-            self.synthetic_keys = vpi.API().unique_dates()[0:1500]
+            if self.use_re_processed_data is True:
+                logging.warning("LOADING: RELABLED SYNTHETIC KEYS")
+                rng = np.random.default_rng(seed=42)
+                loaded_keys = vpi.API().re_unique_dates()
+                self.synthetic_keys = rng.permutation(np.array(loaded_keys)).tolist()[0:1000]
+            else:
+                logging.warning("LOADING: SYNTHETIC KEYS")
+                self.synthetic_keys = random.shuffle(vpi.API().unique_dates())[0:1000]
             self.len_synthetics = len(self.synthetic_keys)
         self.keys_cnn_training, self.keys_cnn_validation = self.__get_processed_keys()
 
         if self.use_processed_measuremnets:
-            self.training_cnn_pm_dataset = ppi.API().measurement(self.keys_cnn_training)
-        self.validation_cnn_pm_dataset = ppi.API().measurement(self.keys_cnn_validation)
+            if self.use_re_processed_data is True:
+                logging.warning("LOADING: RELABLED MEASUREMENTS")
+                self.training_cnn_pm_dataset = ppi.API().re_measurement(self.keys_cnn_training)
+            else:
+                logging.warning("LOADING: MEASUREMENTS")
+                self.training_cnn_pm_dataset = ppi.API().measurement(self.keys_cnn_training)
+
+        if self.use_re_processed_data is True:
+            logging.warning("LOADING: RELABLED VALIDATION DATA")
+            self.validation_cnn_pm_dataset = ppi.API().re_measurement(self.keys_cnn_validation)
+        else:
+            self.validation_cnn_pm_dataset = ppi.API().measurement(self.keys_cnn_validation)
+            logging.warning("LOADING: VALIDATION DATA")
 
         self.validation_cnn_pm = MeasurementTraining(
             self.validation_cnn_pm_dataset, self.keys_cnn_validation, self.mlb
         )
         self.validation_cnn_pm_loader = DataLoader(
-            self.validation_cnn_pm, batch_size=128, shuffle=True
+            self.validation_cnn_pm, batch_size=128, shuffle=True,
         )
         self.best_model = None
         self.best_validation_loss = 0
         self.used_keys = []
 
-        self.training_loss_history = []
+        self.training_loss_macro = []
+        self.training_loss_micro = []
         self.training_entropy_loss_history = []
-        self.validation_loss_history = []
+        self.training_tpr_history = []
+        self.training_fpr_history = []
+        self.training_auc_history = []
+
+        self.validation_loss_macro = []
+        self.validation_loss_micro = []
         self.validation_entropy_loss_history = []
+        self.validation_tpr_history = []
+        self.validation_fpr_history = []
+        self.validation_auc_history = []
 
     def __get_processed_keys(self):
         keys_training = (
@@ -78,18 +114,23 @@ class Training:
 
     def __yield_loader(self):
         if self.use_processed_measuremnets:
-            if self.use_processed_synthetics:
+            if self.use_processed_synthetics is True:
                 pass
             else:
                 self.training_cnn_pm = MeasurementTraining(
                     self.training_cnn_pm_dataset, self.keys_cnn_training, self.mlb
                 )
-                yield DataLoader(self.training_cnn_pm, batch_size=128, shuffle=True)
-        if self.use_processed_synthetics:
+                yield DataLoader(self.training_cnn_pm, batch_size=64, shuffle=True)
+        if self.use_processed_synthetics is True:
             for chunk in range(0, self.len_synthetics, self.chunk_ps):
                 end = min(chunk + self.chunk_ps, self.len_synthetics)
                 selected_synthetics_keys = self.synthetic_keys[chunk:end]
-                dataset = vpi.API().synthetic(selected_synthetics_keys)
+                if self.use_re_processed_data:
+                    logging.warning("LOADING: RELABLED SYNTHETIC DATA FOR TRAINING...")
+                    dataset = vpi.API().re_synhtetics(selected_synthetics_keys)
+                else:
+                    logging.warning("LOADING: SYNTHETIC DATA FOR TRAINING...")
+                    dataset = vpi.API().synthetic(selected_synthetics_keys)
                 if chunk == 0 and self.use_processed_measuremnets is True:
                     dataset = pd.concat(
                         [dataset, self.training_cnn_pm_dataset],
@@ -105,14 +146,19 @@ class Training:
                     training_cnn_ps = MeasurementTraining(
                         dataset, selected_synthetics_keys, self.mlb
                     )
-                yield DataLoader(training_cnn_ps, batch_size=128, shuffle=True)
+                yield DataLoader(training_cnn_ps, batch_size=64, shuffle=True)
 
     def __get_mlb_fitter(self):
-        isotopes = spi.API().view_identified_isotopes()
+        if self.use_re_processed_data is True:
+            logging.warning("LOADING: RELABLED IDENTIFIED ISOTOPES IN DATA")
+            isotopes = spi.API().view_re_identified_isotopes()
+        else:
+            logging.warning("LOADING: IDENTIFIED ISOTOPES IN DATA")
+            isotopes = spi.API().view_identified_isotopes()
         isos = isotopes.loc[
             (isotopes["identified_isotopes"] != "")
             & (isotopes["source_table"] == "processed_measurements")
-        ]["identified_isotopes"].tolist()
+            ]["identified_isotopes"].tolist()
         unique_isos = list(set(isos))
         base_classes = [s.split(",") for s in unique_isos]
         mlb = MultiLabelBinarizer()
@@ -121,22 +167,22 @@ class Training:
         return mlb
 
     def __save_model(self):
-        os.environ["AWS_ACCESS_KEY_ID"] = load_config()["minio"]["AWS_ACCESS_KEY_ID"]
-        os.environ["AWS_SECRET_ACCESS_KEY"] = load_config()["minio"][
+        os.environ["AWS_ACCESS_KEY_ID"] = self.configs["minio"]["AWS_ACCESS_KEY_ID"]
+        os.environ["AWS_SECRET_ACCESS_KEY"] = self.configs["minio"][
             "AWS_SECRET_ACCESS_KEY"
         ]
-        os.environ["MLFLOW_S3_ENDPOINT_URL"] = load_config()["minio"][
+        os.environ["MLFLOW_S3_ENDPOINT_URL"] = self.configs["minio"][
             "MLFLOW_S3_ENDPOINT_URL"
         ]
-        mlflow.set_tracking_uri(uri=load_config()["mlflow"]["uri"])
-        mlflow.set_registry_uri(uri=load_config()["mlflow"]["uri"])
+        mlflow.set_tracking_uri(uri=self.configs["mlflow"]["uri"])
+        mlflow.set_registry_uri(uri=self.configs["mlflow"]["uri"])
         mlflow.set_experiment("NuclideCNN")
 
         with mlflow.start_run(run_name="CNN"):
             mlflow.log_param("mlb_classes", ",".join(self.mlb.classes_))
             mlflow.log_param("scaler", self.validation_cnn_pm.__get_scaler__())
             mlflow.log_param("used_synthetics", self.use_processed_synthetics)
-            mlflow.log_param("used_measurements", self.use_processed_synthetics)
+            mlflow.log_param("used_measurements", self.use_processed_measuremnets)
             mlflow.log_param("best_validation_loss", self.best_validation_loss)
 
             best_model = CNN(num_classes=len(self.mlb.classes_)).to(
@@ -147,17 +193,51 @@ class Training:
             mlflow.pytorch.log_model(best_model.to("cuda"), "model_cuda")
             mlflow.pytorch.log_model(best_model.to("cpu"), "model_cpu")
             mlflow.log_dict(
-                {"used_keys": [str(i) for i in self.used_keys]}, "artifacts.json"
+                {
+                    "used_keys": [str(i) for i in self.used_keys],
+                    "training_tpr": self.training_tpr_history,
+                    "training_fpr": self.training_fpr_history,
+                    "training_auc": self.training_auc_history,
+                    "validation_tpr": self.validation_tpr_history,
+                    "validation_fpr": self.validation_fpr_history,
+                    "validation_auc": self.validation_auc_history,
+                }, "artifacts.json"
             )
 
-            for training_loss in self.training_loss_history:
-                mlflow.log_metric("training_loss", training_loss)
-            for validation_loss in self.validation_loss_history:
-                mlflow.log_metric("validation_loss", validation_loss)
+            for training_loss in self.training_loss_macro:
+                mlflow.log_metric("training_macro_loss", training_loss)
+            for training_micro_loss in self.training_loss_micro:
+                mlflow.log_metric("training_micro_loss", training_micro_loss)
+            for validation_loss in self.validation_loss_macro:
+                mlflow.log_metric("validation_macro_loss", validation_loss)
             for training_entropy_loss in self.training_entropy_loss_history:
                 mlflow.log_metric("training_entropy_loss", training_entropy_loss)
             for validation_entropy_loss in self.validation_entropy_loss_history:
                 mlflow.log_metric("validation_entropy_loss", validation_entropy_loss)
+
+
+    def __track_roc_curve_values(self, y_train_all_numpy, probs_all_numpy, for_training=False):
+        classes = self.mlb.classes_
+        n_classes = y_train_all_numpy.shape[1]
+        if n_classes != len(classes):
+            logging.warning("Number of classes does not match number of classes")
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        for idx, i in enumerate(classes):
+            fpr_r, tpr_r, _ = roc_curve(y_train_all_numpy[:, idx], probs_all_numpy[:, idx])
+
+            fpr[i] = fpr_r.tolist()
+            tpr[i] = tpr_r.tolist()
+            roc_auc[i] = auc(fpr_r, tpr_r)
+        if for_training is True:
+            self.training_fpr_history.append(fpr)
+            self.training_tpr_history.append(tpr)
+            self.training_auc_history.append(roc_auc)
+        else:
+            self.validation_fpr_history.append(fpr)
+            self.validation_tpr_history.append(tpr)
+            self.validation_auc_history.append(roc_auc)
 
     def cnn_training(self):
         for epoch in range(20):
@@ -168,7 +248,7 @@ class Training:
             for loader in self.__yield_loader():
                 self.model.train()
                 for i, (x_train, keys, y_train) in tqdm(
-                    enumerate(loader), total=len(loader)
+                        enumerate(loader), total=len(loader)
                 ):
                     self.used_keys.append(keys)
                     x_train = x_train.float().unsqueeze(1).to("cuda")
@@ -195,7 +275,16 @@ class Training:
                 average=None,
             )
             mean = np.nanmean(macro_roc_auc_ovr)
-            self.training_loss_history.append(mean)
+            training_loss_micro = roc_auc_score(
+                y_train_all_numpy,
+                probs_all_numpy,
+                average="micro",
+            )
+            self.training_loss_micro.append(training_loss_micro)
+            logging.warning(f"TRAINING LOSS MICRO: {training_loss_micro}, TRAINING LOSS MACRO: {mean}")
+            self.training_loss_macro.append(mean)
+            self.__track_roc_curve_values(y_train_all_numpy=y_train_all_numpy, probs_all_numpy=probs_all_numpy,
+                                          for_training=True)
             self.__cnn_validation()
         self.__save_model()
 
@@ -227,8 +316,16 @@ class Training:
             average=None,
         )
         mean = np.nanmean(macro_roc_auc_ovr)
-        print(f"LOSS :{mean}")
-        self.validation_loss_history.append(mean)
+        validation_loss_micro = roc_auc_score(
+            y_train_all_numpy,
+            probs_all_numpy,
+            average="micro",
+        )
+        self.validation_loss_micro.append(validation_loss_micro)
+        logging.warning(f"VALIDATION LOSS MICRO: {validation_loss_micro}, VALIDATION LOSS MACRO: {mean}")
+        self.validation_loss_macro.append(mean)
+        self.__track_roc_curve_values(y_train_all_numpy=y_train_all_numpy, probs_all_numpy=probs_all_numpy,
+                                      for_training=False)
         if mean > self.best_validation_loss:
             self.best_validation_loss = mean
             self.best_model = self.model.state_dict()

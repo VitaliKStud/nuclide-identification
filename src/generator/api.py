@@ -25,3 +25,17 @@ class API:
             .sort_values(by=["datetime", "energy"])
             .reset_index(drop=True)
         )
+
+    def synthetics_for_meas(self, keys: list):
+        keys_str = tuple(keys)
+        if len(keys_str) == 1:
+            query = f"SELECT * FROM measurements.processed_synthetics WHERE datetime_from_measurement = '{keys_str[0]}'"
+        else:
+            query = f'SELECT * FROM measurements.processed_synthetics WHERE "datetime_from_measurement" IN {keys_str}'
+        return (
+            pd.read_sql(sql=query, con=self.engine)
+            .sort_values(by=["datetime", "energy"])
+            .reset_index(drop=True)
+        )
+
+

@@ -50,9 +50,21 @@ class API:
             con=self.engine,
         )
 
+    def view_re_pm_isotopes_found(self):
+        return pd.read_sql(
+            sql="SELECT * FROM measurements.view_re_pm_isotopes_found",
+            con=self.engine,
+        )
+
     def view_ps_isotopes_found(self):
         return pd.read_sql(
             sql="SELECT * FROM measurements.view_ps_isotopes_found",
+            con=self.engine,
+        )
+
+    def view_re_ps_isotopes_found(self):
+        return pd.read_sql(
+            sql="SELECT * FROM measurements.view_re_ps_isotopes_found",
             con=self.engine,
         )
 
@@ -62,9 +74,21 @@ class API:
             con=self.engine,
         )
 
+    def view_isotope_per_re_pm(self):
+        return pd.read_sql(
+            sql="SELECT * FROM measurements.view_isotope_per_re_pm",
+            con=self.engine,
+        )
+
     def view_isotope_per_ps(self):
         return pd.read_sql(
             sql="SELECT * FROM measurements.view_isotope_per_ps",
+            con=self.engine,
+        )
+
+    def view_isotope_per_re_ps(self):
+        return pd.read_sql(
+            sql="SELECT * FROM measurements.view_isotope_per_re_ps",
             con=self.engine,
         )
 
@@ -80,9 +104,21 @@ class API:
             con=self.engine,
         )
 
+    def view_re_identified_isotopes(self):
+        return pd.read_sql(
+            sql="SELECT * FROM measurements.view_re_identified_isotopes",
+            con=self.engine,
+        )
+
     def view_processed_synthetics_latent_space(self):
         return pd.read_sql(
             sql="SELECT * FROM measurements.view_processed_synthetics_latent_space",
+            con=self.engine,
+        )
+
+    def view_mean_measurement(self):
+        return pd.read_sql(
+            sql="SELECT * FROM measurements.view_mean_measurement",
             con=self.engine,
         )
 

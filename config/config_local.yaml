@@ -18,9 +18,9 @@ cnn:
   input_dim: 1 # One Measurement per Input (with 8160 Channels)
   first_layer: 1020
   second_layer: 510
-  third_layer: 205
-  fourth_layer: 100
-  fc_first_layer: 50
+  third_layer: 206
+  fourth_layer: 256
+  fc_first_layer: 512
   max_pool: 2
   adaptive_pool: 1
   use_processed_measurements: False
@@ -29,7 +29,59 @@ cnn:
 splitter:
   vae: { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20, "6": 10 } # Distribution to split identified isotopes as a training/test dataset, 1 means NO ISOTOPES, JUST MEASUREMENT
   cnn_validation: { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20, "6": 10 } # Distribution for Validation Dataset, 1 Means NO ISOTOPES, JUST MEASUREMENT
-  max_isotopes_per_measurement: 6
+  max_isotopes_per_measurement: 7
+
+resplitter:
+  cnn_validation: {"2": 5, "3": 20, "4": 20, "5": 20, "6": 20, "7": 20, "8":20, "9":20 , "10": 20, "11":10} # Distribution to split identified isotopes as a training/test dataset, 1 means NO ISOTOPES, JUST MEASUREMENT
+  max_isotopes_per_measurement: 12
+  min_isotopes_per_measurement: 2
+
+repeakfinder:
+  nuclides: [
+    "eu154",
+    "eu152",
+    "co60",
+    "bi214",
+    "u235",
+    "am241",
+    "tm163",
+    "tb141",
+    "cs137",
+    "k40",
+    "pb214"
+  ]
+  intensity_levels:
+    {
+      "eu154": 30,
+      "eu152": 5,
+      "co60": 2,
+      "bi214": 1,
+      "u235": 5,
+      "am241": 1,
+      "tm163": 10,
+      "tb141": 15,
+      "cs137": 20,
+      "k40": 0,
+      "pb214": 1
+    }
+  lower_upper_edges:
+    {
+      "eu154": [0,3000],
+      "eu152": [50, 3000],
+      "co60": [0,3000],
+      "bi214": [0,3000],
+      "u235": [180, 3000],
+      "am241": [50, 3000],
+      "tm163": [50, 3000],
+      "tb141": [0, 500],
+      "cs137": [0,3000],
+      "k40": [515, 3000],
+      "pb214": [70, 3000]
+    }
+  bremsstrahlung_prominence: 1
+  bremsstrahlung_width: 3
+  prominence_after_bremsstrahlung: 0.1
+  width_after_bremsstrahlung: 3
 
 peakfinder:
   tolerance: 0.60 # CONFIDANCE / TOLERANCE FOR PEAKS
@@ -41,17 +93,17 @@ peakfinder:
   rel_height: 5
   wlen: 8
   nuclides: [
-    "cs137",
-    "co60",
-    "i131",
-    "tc99m",
+    "u238",
     "ra226",
     "th232",
-    "u238",
     "am241",
+    "i131",
+    "cs137",
     "eu152",
     "eu154",
-    "cs145"
+    "co60",
+    "cs145",
+    "na22"
   ]
 
 measurements:

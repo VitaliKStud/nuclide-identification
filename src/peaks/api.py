@@ -21,8 +21,17 @@ class API:
             query = f"SELECT * FROM measurements.processed_measurements WHERE datetime = '{timestamps_str[0]}'"
         else:
             query = f'SELECT * FROM measurements.processed_measurements WHERE "datetime" IN {timestamps_str}'
-        return (
-            pd.read_sql(sql=query, con=self.engine)
-            .sort_values(by=["datetime", "energy"])
-            .reset_index(drop=True)
-        )
+        with self.engine.begin() as connection:
+            data = pd.read_sql(sql=query, con=self.engine).sort_values(by=["datetime", "energy"]).reset_index(drop=True)
+        return data
+
+    def re_measurement(self, dates: list):
+        dates = [pd.Timestamp(t) for t in dates]
+        timestamps_str = tuple(t.strftime("%Y-%m-%d %H:%M:%S") for t in dates)
+        if len(timestamps_str) == 1:
+            query = f"SELECT * FROM measurements.re_processed_measurements WHERE datetime = '{timestamps_str[0]}'"
+        else:
+            query = f'SELECT * FROM measurements.re_processed_measurements WHERE "datetime" IN {timestamps_str}'
+        with self.engine.begin() as connection:
+            data = pd.read_sql(sql=query, con=self.engine).sort_values(by=["datetime", "energy"]).reset_index(drop=True)
+        return data

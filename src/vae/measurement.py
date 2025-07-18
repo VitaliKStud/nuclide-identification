@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 from config.loader import load_config
 
+
 # TODO PROBABLY IMPLEMENT OTHER SCALER (HERE MINMAX)
 
 class Measurement(Dataset):

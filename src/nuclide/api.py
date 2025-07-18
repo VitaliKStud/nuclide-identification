@@ -54,7 +54,9 @@ class API:
             """
         else:
             return None
-        return pd.read_sql(sql=query, con=self.engine)
+        with self.engine.begin() as conn:
+            data = pd.read_sql(sql=query, con=self.engine)
+        return data
 
     def nuclides_max_intensity(self):
         query = """

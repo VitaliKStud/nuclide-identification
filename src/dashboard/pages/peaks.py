@@ -12,6 +12,8 @@ import src.nuclide.api as npi
 
 register_page(__name__, "/peakfinder", title="PeakFinder")
 
+latent_space_shaps = spi.API().latent_space_shaps()
+
 sidebar = dbc.Col(
     [
         html.H6("Select a Measurement", style={"color": "lightgrey"}),
@@ -19,6 +21,13 @@ sidebar = dbc.Col(
             id="checklist",
             options=[{"label": f, "value": f} for f in mpi.API().unique_dates()],
             value=mpi.API().unique_dates()[0],
+            multi=False,
+        ),
+        html.H6("Select a Laten Space Var", style={"color": "lightgrey"}),
+        dcc.Dropdown(
+            id="checklist-shaps",
+            options=[{"label": f, "value": f} for f in latent_space_shaps["datetime"].unique()],
+            value=latent_space_shaps["datetime"][0],
             multi=False,
         ),
         html.Br(),
@@ -94,6 +103,7 @@ sidebar = dbc.Col(
 content = dbc.Col(
     [
         dbc.Row(dcc.Graph(id="graph-peak-finder")),
+        dbc.Row(dcc.Graph(id="graph-peak-finder-shaps")),
         dbc.Row(
             [
                 dash_table.DataTable(id="table-peak-finder"),
@@ -135,9 +145,11 @@ def get_nuclide_table(nuclide_intensity, max_energy, min_energy):
 
 
 @callback(
-    Output("graph-peak-finder", "figure"),  # Output data for the table
+    Output("graph-peak-finder", "figure"),
+            Output("graph-peak-finder-shaps", "figure"),
     [
         Input("checklist", "value"),
+        Input("checklist-shaps", "value"),
         Input("input-tolerance", "value"),
         Input("input-nuclide-intensity", "value"),
         Input("input-matching-ratio", "value"),
@@ -150,6 +162,7 @@ def get_nuclide_table(nuclide_intensity, max_energy, min_energy):
 )
 def update_combined_chart(
     file_id,
+    shap_id,
     tolerance,
     nuclide_intensity,
     matching_ratio,
@@ -238,4 +251,88 @@ def update_combined_chart(
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     fig.update_yaxes(type="linear")
-    return fig
+
+    ######################### SHAPS ##############################
+
+
+    fig_shaps = go.Figure()
+    if file_id:
+        file_data = PeakFinder(
+            selected_date=shap_id,
+            data=latent_space_shaps.loc[latent_space_shaps["datetime"] == shap_id].reset_index(drop=True),
+            meta=None,
+            schema=None,
+            nuclides=nuclides,
+            prominence=prominence,
+            tolerance=tolerance,
+            wlen=wlen,
+            width=width,
+            rel_height=rel_height,
+            nuclides_intensity=nuclide_intensity,
+            matching_ratio=matching_ratio,
+            interpolate_energy=True,
+        ).process_spectrum(return_detailed_view=True)
+
+        fig_shaps.add_trace(
+            go.Scatter(
+                x=file_data["energy"],
+                y=file_data["count"],
+                mode="lines",
+                name=f"File: {datetime.fromisoformat(file_id)}",
+                zorder=10,
+            )
+        )
+        fig_shaps.add_trace(
+            go.Scatter(
+                x=file_data["energy"],
+                y=file_data["background"],
+                mode="lines",
+                name=f"{datetime.fromisoformat(file_id)} - Background",
+                zorder=10,
+            )
+        )
+        file_data["cleaned_data"] = file_data["count"] - file_data["background"]
+        fig_shaps.add_trace(
+            go.Scatter(
+                x=file_data["energy"],
+                y=file_data["cleaned_data"],
+                mode="lines",
+                name=f"{datetime.fromisoformat(file_id)} - Background",
+                zorder=10,
+            )
+        )
+        unique_isotopes = file_data.loc[file_data["peak"] == 1][
+            "identified_isotope"
+        ].unique()
+        color_palette = px.colors.qualitative.Dark24
+        isotope_color_map = {
+            isotope: color_palette[i % len(color_palette)]
+            for i, isotope in enumerate(unique_isotopes)
+        }
+        energy_peaks = file_data.loc[file_data["peak"] == 1][
+            ["energy", "identified_isotope"]
+        ].to_numpy()
+        for peak in energy_peaks:
+            fig_shaps.add_vline(
+                x=peak[0],
+                line_width=2,
+                line_dash="dash",
+                line_color=isotope_color_map[peak[1]],
+                legendgroup=peak[1],
+                showlegend=True,
+                name=peak[1],
+                annotation_text=peak[1],
+            )
+    fig_shaps.update_layout(
+        title="Processed Measurement",
+        xaxis_title="Energy",
+        yaxis_title="Count",
+        barmode="overlay",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    fig_shaps.update_yaxes(type="linear")
+
+
+
+
+    return fig, fig_shaps

@@ -143,7 +143,7 @@ import numpy as np
 # probs_all_numpy: predicted probabilities (N samples x C classes)
 # y_train_all_numpy: true binary labels (N samples x C classes)
 
-classes = test_set.__getmlbclasses__()
+classes = self.mlb.classes_
 n_classes = y_train_all_numpy.shape[1]
 fpr = dict()
 tpr = dict()
@@ -160,6 +160,7 @@ for i in range(n_classes):
     roc_auc[i] = auc(fpr[i], tpr[i])
 
     plt.plot(fpr[i], tpr[i], lw=2, label=f"Class {classes[i]} (AUC = {roc_auc[i]:.2f})")
+
 
 # Plot baseline
 plt.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--")

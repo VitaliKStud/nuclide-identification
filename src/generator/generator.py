@@ -75,7 +75,7 @@ class Generator:
         for group in measurements.groupby("datetime"):
             datetime = group[0]
             measurement = group[1].sort_values(by="energy")[["energy", "count"]]
-            for i in range(11):
+            for i in range(10):
                 all_datetimes.append(str(datetime))
                 x = self.scale(
                     torch.tensor(
@@ -86,10 +86,13 @@ class Generator:
                 latent_space = (
                     self.model.reparameterize(mean, log_var).to("cpu").detach().numpy()
                 )
-                all_latents.append(latent_space)
+                if np.any(latent_space > 10) or np.any(latent_space < -10):
+                    pass
+                else:
+                    all_latents.append(latent_space)
         return all_latents, all_datetimes
 
-    def process(self, latent_space):
+    def process(self, latent_space, prefix=""):
         all_datetimes = None
         if latent_space is None:
             latent_space, all_datetimes = (
@@ -105,7 +108,7 @@ class Generator:
                     datetime = ""
                 synthetic_data = pd.DataFrame([])
                 synthetic_data["energy"] = energy_axis
-                synthetic_data["datetime"] = f"synthetic_{sample_number}_{datetime}"
+                synthetic_data["datetime"] = f"{prefix}_synthetic_{sample_number}_{datetime}"
                 synthetic_data["count"] = generated_data
                 synthetic_data["datetime_from_measurement"] = datetime
                 PeakFinder(
@@ -122,13 +125,14 @@ class Generator:
                     nuclides_intensity=self.nuclide_intensity,
                     matching_ratio=self.matching_ratio,
                     interpolate_energy=False,
+                    measurement_peaks_prefix=prefix
                 ).process_spectrum(return_detailed_view=False)
 
                 columns = ["datetime", "datetime_from_measurement"] + [
                     i for i in range(len(latent_z))
                 ]
                 latent_data = pd.DataFrame(
-                    [[f"synthetic_{sample_number}"] + [datetime] + list(latent_z)],
+                    [[f"{prefix}_synthetic_{sample_number}"] + [datetime] + list(latent_z)],
                     columns=columns,
                 )
                 latent_data.to_sql(

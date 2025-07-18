@@ -22,8 +22,8 @@ sidebar = dbc.Col(
         html.H6("Select a processed Synthetic-Data", style={"color": "lightgrey"}),
         dcc.Dropdown(
             id="checklist_synthetics",
-            options=[{"label": f, "value": f} for f in spi.API().unique_dates()],
-            value=spi.API().unique_dates()[0],
+            options=[{"label": f, "value": f} for f in spi.API().re_unique_dates()],
+            value=spi.API().re_unique_dates()[0],
             multi=False,
         ),
     ],
@@ -69,7 +69,7 @@ def convert_to_datetime(selected_value):
 def update_combined_chart(file_id):
     fig = go.Figure()
     if file_id:
-        file_data = ppi.API().measurement(dates=[datetime.fromisoformat(file_id)])
+        file_data = ppi.API().re_measurement(dates=[datetime.fromisoformat(file_id)])
         file_data = file_data.sort_values(by="energy")
         fig.add_trace(
             go.Scatter(
@@ -138,55 +138,58 @@ def update_combined_chart(file_id):
 )
 def update_combined_chart_synt(file_id):
     fig = go.Figure()
-    if file_id:
-        file_data = spi.API().synthetic(dates=[file_id])
-        file_data = file_data.sort_values(by="energy")
-        fig.add_trace(
-            go.Scatter(
-                x=file_data["energy"],
-                y=file_data["count"],
-                mode="lines",
-                name=f"{file_id}",
-                zorder=10,
+    try:
+        if file_id:
+            file_data = spi.API().re_synhtetics(dates=[file_id])
+            file_data = file_data.sort_values(by="energy")
+            fig.add_trace(
+                go.Scatter(
+                    x=file_data["energy"],
+                    y=file_data["count"],
+                    mode="lines",
+                    name=f"{file_id}",
+                    zorder=10,
+                )
             )
+            fig.add_trace(
+                go.Scatter(
+                    x=file_data["energy"],
+                    y=file_data["background"],
+                    mode="lines",
+                    name=f"{file_id} - Background",
+                    zorder=10,
+                )
+            )
+            unique_isotopes = file_data.loc[file_data["peak"] == 1][
+                "identified_isotope"
+            ].unique()
+            color_palette = px.colors.qualitative.Dark24
+            isotope_color_map = {
+                isotope: color_palette[i % len(color_palette)]
+                for i, isotope in enumerate(unique_isotopes)
+            }
+            energy_peaks = file_data.loc[file_data["peak"] == 1][
+                ["energy", "identified_isotope"]
+            ].to_numpy()
+            for peak in energy_peaks:
+                fig.add_vline(
+                    x=peak[0],
+                    line_width=2,
+                    line_dash="dash",
+                    line_color=isotope_color_map[peak[1]],
+                    legendgroup=peak[1],
+                    name=peak[1],
+                    showlegend=True,
+                    annotation_text=peak[1],
+                )
+        fig.update_layout(
+            title="Processed Synthetic-Data",
+            xaxis_title="Energy",
+            yaxis_title="Count / Intensity",
+            barmode="overlay",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
-        fig.add_trace(
-            go.Scatter(
-                x=file_data["energy"],
-                y=file_data["background"],
-                mode="lines",
-                name=f"{file_id} - Background",
-                zorder=10,
-            )
-        )
-        unique_isotopes = file_data.loc[file_data["peak"] == 1][
-            "identified_isotope"
-        ].unique()
-        color_palette = px.colors.qualitative.Dark24
-        isotope_color_map = {
-            isotope: color_palette[i % len(color_palette)]
-            for i, isotope in enumerate(unique_isotopes)
-        }
-        energy_peaks = file_data.loc[file_data["peak"] == 1][
-            ["energy", "identified_isotope"]
-        ].to_numpy()
-        for peak in energy_peaks:
-            fig.add_vline(
-                x=peak[0],
-                line_width=2,
-                line_dash="dash",
-                line_color=isotope_color_map[peak[1]],
-                legendgroup=peak[1],
-                name=peak[1],
-                showlegend=True,
-                annotation_text=peak[1],
-            )
-    fig.update_layout(
-        title="Processed Synthetic-Data",
-        xaxis_title="Energy",
-        yaxis_title="Count / Intensity",
-        barmode="overlay",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
-    fig.update_yaxes(type="linear")
+        fig.update_yaxes(type="linear")
+    except:
+        pass
     return fig

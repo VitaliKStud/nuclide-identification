@@ -13,37 +13,31 @@ import src.peaks.api as ppi
 from config.loader import load_config
 
 
-class PeakFinder(ppi.API):
+class RePeakFinder(ppi.API):
     def __init__(
             self,
             selected_date,
-            nuclides,
-            nuclides_intensity,
             data=None,
             meta=None,
             interpolate_energy=True,
-            prominence=1000,
-            width=None,
-            rel_height=None,
-            wlen=None,
-            matching_ratio=1 / 15,
-            tolerance=0.5,
-            schema="processed_measurements",
-            step_size=0.34507313512321336,
+            matching_ratio=0,
+            tolerance=0.0,
+            schema="re_processed_measurements",
+            step_size=load_config()["measurements"]["step_size"],
             measurement_peaks_prefix="",
+            nuclide_data=None,
             **kwargs,
     ):
         super().__init__()
+        self.config_loader = load_config()
         self.engine = load_engine()
         self.selected_date = selected_date
         self.measurement_peaks_prefix = measurement_peaks_prefix
         self.data = data
         self.meta = meta
+        self.nuclide_data = nuclide_data
         self.polynomial = self.__polynomial_f()
-        self.isotopes = self.npi.nuclides(nuclides, nuclides_intensity)
-        logging.warning(
-            f"Isotopes: {self.isotopes['nuclide_id'].unique()}, {len(self.isotopes['nuclide_id'].unique())}"
-        )
+        self.isotopes = self.reload_isotopes()
         self.identified_isotopes = []
         self.peak_confidences = []
         self.isotope_confidences = []
@@ -51,16 +45,38 @@ class PeakFinder(ppi.API):
         self.identified_peaks = []
         self.identified_peaks_idx = []
         self.compton_edge_idx = []
-        self.prominence = prominence
-        self.width = width
-        self.wlen = wlen
-        self.rel_height = rel_height
+        self.bremsstrahlung_prominence = self.config_loader["repeakfinder"]["bremsstrahlung_prominence"]
+        self.bremsstrahlung_width = self.config_loader["repeakfinder"]["bremsstrahlung_width"]
+        self.prominence_after_bremsstrahlung = self.config_loader["repeakfinder"]["prominence_after_bremsstrahlung"]
+        self.width_after_bremsstrahlung = self.config_loader["repeakfinder"]["width_after_bremsstrahlung"]
         self.matching_ratio = matching_ratio
         self.tolerance = tolerance
         self.schema = schema
         self.step_size = step_size
         self.interpolate_energy = interpolate_energy
         self.kwargs = kwargs
+
+    def reload_isotopes(self):
+        intensity_levels = dict(self.config_loader["repeakfinder"]["intensity_levels"])
+        lower_upper_edges = dict(self.config_loader["repeakfinder"]["lower_upper_edges"])
+        # nuclides = self.npi.nuclides(self.config_loader["repeakfinder"]["nuclides"])
+
+        filtered_df_list = []
+        for nuclide, intensity_threshold in intensity_levels.items():
+            lower, upper = lower_upper_edges[nuclide]
+
+            filtered = self.nuclide_data[
+                (self.nuclide_data["nuclide_id"] == nuclide) &
+                (self.nuclide_data["intensity"] >= intensity_threshold) &
+                (self.nuclide_data["energy"] >= lower) &
+                (self.nuclide_data["energy"] <= upper)
+                ]
+
+            filtered_df_list.append(filtered)
+        df = pd.concat(filtered_df_list, ignore_index=True)
+        # logging.warning(f"ISOTOPES: {sorted(nuclides["energy"].tolist())}")
+
+        return df
 
     def __fit_gaussian(self, peaks: np.ndarray, properties: dict) -> np.ndarray:
         """
@@ -99,25 +115,19 @@ class PeakFinder(ppi.API):
                 peaks, properties["left_bases"], properties["right_bases"]
         ):
             try:
-                x = np.arange(left_base, right_base)
-                # fallback to +-5 if the range is too small to fit or too large to be realistic
-                # if len(x) <= 10:
-                #     x = np.arange(peak - 5, peak + 5)
-                # elif len(x) > 30:
-                #     x = np.arange(peak - 5, peak + 5)
-                if len(x) <= 10 or len(x) > 30:
-                    x = np.arange(max(0, peak - 5), min(len(self.data), peak + 5))
-                y = self.data["counts_cleaned"].iloc[x]
-                popt, _ = curve_fit(
-                    gaussian, x, y, p0=[y.max(), x.mean(), 1], maxfev=2000
-                )
-                fitted_peak_mean.append(np.abs(popt[1]))
-                fitted_peak_std.append(np.abs(popt[2]))
+                # x = np.arange(max(0, peak - 5), min(len(self.data), peak + 5))
+                # y = self.data["counts_cleaned"].iloc[x]
+                # popt, _ = curve_fit(
+                #     gaussian, x, y, p0=[y.max(), x.mean(), 1], maxfev=2000
+                # )
+                fitted_peak_mean.append(self.polynomial(np.abs(peak)))
+                step = self.step_size
+                fitted_peak_std.append(np.abs(5 * step))
+
             except RuntimeError:
                 fitted_peak_mean.append(0)
                 fitted_peak_std.append(1)
-        fitted_peaks = unumpy.uarray(fitted_peak_mean, fitted_peak_std)
-        pols = self.polynomial(fitted_peaks)
+        pols = unumpy.uarray(fitted_peak_mean, fitted_peak_std)
         compton_edges = self.calculate_compton_effect(pols)
         return pols, compton_edges
 
@@ -127,8 +137,7 @@ class PeakFinder(ppi.API):
             compton_edges.append(peak - (peak / (1 + (2 * peak / 511))))
         return np.array(compton_edges)
 
-
-    def __identify_background(self, wndw: int = 5, scale: float = 1.5) -> np.ndarray:
+    def __identify_background(self, data, wndw: int = 5, scale: float = 1.5) -> np.ndarray:
         """
         Identify the background of a spectrum by analyzing the slopes and applying a moving average.
         Parameters:
@@ -146,9 +155,9 @@ class PeakFinder(ppi.API):
         np.ndarray
             The interpolated background values.
         """
-        self.data = self.data.sort_index()
-        self.data["count"] = self.data["count"].astype(float)
-        counts = self.data["count"].values
+        data = data.sort_index()
+        data["count"] = data["count"].astype(float)
+        counts = data["count"].values
         slopes = np.abs(np.diff(counts))
         moving_avg = np.convolve(slopes, np.ones(wndw) / wndw, mode="same")
         threshold = np.mean(moving_avg) * scale
@@ -166,8 +175,8 @@ class PeakFinder(ppi.API):
     def __calculate_confidence(self, peak, energy, std):
         """Calculate confidence score for peak matching an energy value."""
         # Use a Gaussian probability density function
-        confidence = norm.pdf(energy, loc=peak, scale=std)
         std = max(std, 1.0)
+        confidence = norm.pdf(energy, loc=peak, scale=std)
         # Normalize to [0,1] range
         confidence = confidence / norm.pdf(peak, loc=peak, scale=std)
         return confidence
@@ -185,10 +194,10 @@ class PeakFinder(ppi.API):
             if peak_confidence > self.tolerance:
                 matched.append(nuclide_id)
                 self.peak_confidences.append(peak_confidence)
-                logging.warning(
-                    f"Peak at {peak:2f} +- {std:2f} keV matched to {nuclide_id} at "
-                    f"{energy} keV with confidence {peak_confidence:.2f}"
-                )
+                # logging.warning(
+                #     f"Peak at {peak:2f} +- {std:2f} keV matched to {nuclide_id} at "
+                #     f"{energy} keV with confidence {peak_confidence:.2f}"
+                # )
 
     def __identify_isotopes(
             self, fitted_peaks: unumpy.uarray, peaks_idx: np.array = None, compton_edges=np.array
@@ -271,7 +280,7 @@ class PeakFinder(ppi.API):
                 x,
                 deg=3,
             )
-            logging.warning(f"Calculated Coefficients: {coef}")
+            # logging.warning(f"Calculated Coefficients: {coef}")
             return lambda x: coef[-1] + coef[-2] * x + coef[-3] * x ** 2 + coef[-4] * x ** 3
 
         else:
@@ -302,27 +311,6 @@ class PeakFinder(ppi.API):
                 "identified_peak",
             ]
         ].round(2)
-        if self.schema == "processed_synthetics":
-            query = text("""
-                         DELETE
-                         FROM measurements.processed_synthetics
-                         WHERE "datetime" = :selected_date;
-                         """)
-
-        elif self.schema == "processed_measurements":
-            query = text("""
-                         DELETE
-                         FROM measurements.processed_measurements
-                         WHERE "datetime" = :selected_date
-                         AND "prefix" = :self.measurement_prefix;
-                         """)
-        with self.engine.connect() as connection:
-            try:
-                with connection.begin():
-                    connection.execute(query, {"selected_date": self.selected_date})
-                    logging.warning(self.selected_date)
-            except Exception as e:
-                logging.warning(f"Deletion failed: {e}")
 
         self.data["prefix"] = self.measurement_peaks_prefix
         with self.engine.begin() as connection:
@@ -374,6 +362,35 @@ class PeakFinder(ppi.API):
 
         self.data["energy"] = self.data["energy"].round(3)
 
+    def __get_prominence(self, std, limitation="greater500"):
+        if self.schema == "re_processed_synthetics":
+            if limitation == "greater500":
+                x = np.array([0.3, 0.5, 0.8, 0.3, 0.2]) # _greater500
+                y = np.array([0.1161, 6.0469, 14.7788, 36.3063, 5596.2659]) # _greater500
+            if limitation == "less500":
+                x = np.array([0.01, 0.06, 0.05, 0.3, 0.7]) # _less500
+                y = np.array([0.3163, 19.2846, 53.5015, 146.7614, 31982.5049]) # _less500
+
+        else:
+            if limitation == "greater500":
+                x = np.array([4, 1.4, 1.7, 0.4, 0.05]) # _greater500
+                y = np.array([0.3507, 2.5214, 5.8117, 18.8154, 2417.0879]) # _greater500
+            if limitation == "less500":
+                x = np.array([0.2, 0.7, 0.8, 0.6, 0.1]) # _less500
+                y = np.array([1.21424, 10.7187, 15.6976, 48.2542, 11026.2624]) # _less500
+
+        if std > max(y):
+            return x[-1]
+        if std < min(y):
+            return x[0]
+        else:
+            min_prominence = x[std >= y][-1]
+            max_prominence = x[std <= y][0]
+            estimated_prominance = np.mean([min_prominence, max_prominence])
+
+        return estimated_prominance
+
+
     def process_spectrum(
             self,
             return_detailed_view: bool = False,
@@ -424,21 +441,48 @@ class PeakFinder(ppi.API):
         """
 
         self.data = self.data.sort_values(by="energy").reset_index(drop=True)
-        # self.data["count"] = (self.data["count"] - self.data["count"].min()) / (self.data["count"].max() - self.data["count"].min())
+        lower_data = self.data.loc[self.data["energy"] < 500].copy()
+        upper_data = self.data.loc[self.data["energy"] >= 500].copy()
 
-        std = self.data["count"].std()
-        mean = self.data["count"].mean()
-        self.data["count"] = (self.data["count"] - mean) / std
-        self.data["background"] = self.__identify_background()
-        self.data["counts_cleaned"] = self.data["count"] - self.data["background"]
-        peaks_idx, properties = find_peaks(
-            self.data["counts_cleaned"],
-            prominence=self.prominence,
-            width=self.width,
-            rel_height=self.rel_height,
-            wlen=self.wlen,
+        lower_std = lower_data["count"].std()
+        lower_mean = lower_data["count"].mean()
+        upper_min = upper_data["count"].min()
+        upper_max = upper_data["count"].max()
+        upper_std = upper_data["count"].std()
+        upper_mean = upper_data["count"].mean()
+
+        lower_data["count"] = (lower_data["count"] - lower_mean) / lower_std
+        upper_data["count"] = (upper_data["count"] - upper_mean) / upper_std
+        lower_data["background"] = self.__identify_background(data=lower_data)
+        upper_data["background"] = self.__identify_background(data=upper_data)
+
+        lower_data["counts_cleaned"] = lower_data["count"]
+        upper_data["counts_cleaned"] = upper_data["count"]
+
+
+        peaks_idx_lower, properties_lower = find_peaks(
+            lower_data["counts_cleaned"],
+            prominence=self.__get_prominence(lower_std, "less500"),
+            width=self.bremsstrahlung_width,
             **self.kwargs,
         )
+        from scipy.signal import savgol_filter
+        y_smooth = savgol_filter(upper_data["counts_cleaned"].to_numpy(), window_length=8, polyorder=1)
+        # print("peaks_idx_lower = ", peaks_idx_lower)
+        peaks_idx_upper, properties_upper = find_peaks(
+            y_smooth,
+            prominence=self.__get_prominence(upper_std, "greater500"),
+            width=self.width_after_bremsstrahlung,
+            **self.kwargs,
+        )
+        peaks_idx_upper = np.array(upper_data.index[peaks_idx_upper])
+        peaks_idx = np.append(peaks_idx_lower, peaks_idx_upper)
+        # print(peaks_idx)
+        properties = {}
+        for key in properties_lower:
+            properties[key] = np.append(properties_lower[key], properties_upper[key] + max(lower_data.index) + 1)
+
+        self.data = pd.concat([lower_data, upper_data], axis=0)
 
         fitted_peaks, compton_edges = self.__fit_gaussian(peaks=peaks_idx, properties=properties)
         self.__identify_isotopes(
@@ -459,8 +503,20 @@ class PeakFinder(ppi.API):
         self.data["confidence"] = 0.0
         self.data["identified_peak"] = 0.0
         self.data["identified_isotope"] = ""
-        self.data["count"] = self.data["count"] * std + mean  # RESCALE
-        self.data["background"] = self.data["background"] * std + mean  # RESCALE
+
+        self.data.loc[self.data["energy"] < 500, "count"] = (
+                self.data.loc[self.data["energy"] < 500, "count"] * lower_std + lower_mean
+        )
+        self.data.loc[self.data["energy"] < 500, "background"] = (
+                self.data.loc[self.data["energy"] < 500, "background"] * lower_std + lower_mean
+        )
+
+        self.data.loc[self.data["energy"] >= 500, "count"] = (
+                self.data.loc[self.data["energy"] >= 500, "count"] * upper_std + upper_mean
+        )
+        self.data.loc[self.data["energy"] >= 500, "background"] = (
+                self.data.loc[self.data["energy"] >= 500, "background"] * upper_std + upper_mean
+        )
 
         self.data.loc[self.identified_peaks_idx, "peak"] = True
         self.data.loc[self.compton_edge_idx, "peak"] = False

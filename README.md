@@ -9,6 +9,21 @@ Gradienten-Plots und Entwicklung
 Synthetic mit Ausgangsdaten vergleichen, aber GLEICHE Anzahl-SAMPLES -> Ähnlichkeit?
 Hypothesentest
 Dashboard und rest minimal erwähne
+Pooling für einzelne Samples
+Synthetische Daten besser funktionier, da weniger rauschen bei synthetischen
+Validierung auf synthetischen Daten
+Intensität der Nuklide
+Verteilung der Synthetischen Daten
+Warum ähnlich wie monte carlo
+
+WICHTIG: WAS TUT DER VAE AM ENDE?
+
+09.07 ihm zuschicken
+
+Ein paar Validierungen plotten und eibinden in die thesis
+Hyperparametersatz
+
+Proof of concept ist vorhanden
 
 This repository is about to identify nuclides via neural network techniques for gamma-ray 
 measurements. 

@@ -33,6 +33,10 @@ dash = "^3.0.4"
 dash-bootstrap-components = "^2.0.2"
 plottools = "^0.2.0"
 nbstripout = "^0.8.1"
+shap = "^0.48.0"
+torchview = "^0.2.7"
+graphviz = "^0.21"
+mglearn = "^0.2.0"
 
 
 [[tool.poetry.source]]

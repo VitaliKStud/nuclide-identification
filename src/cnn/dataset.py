@@ -74,20 +74,20 @@ class MeasurementValidation(Dataset):
         self.engine = load_engine()
         self.statistics = spi.API().view_min_max()
 
-        self.data_min = (
-            self.statistics.loc[
-                self.statistics["source_table"] == "processed_measurements_cnn_training"
-            ]
-            .reset_index(drop=True)["min"]
-            .values[0]
-        )
-        self.data_max = (
-            self.statistics.loc[
-                self.statistics["source_table"] == "processed_measurements_cnn_training"
-            ]
-            .reset_index(drop=True)["max"]
-            .values[0]
-        )
+        # self.data_min = (
+        #     self.statistics.loc[
+        #         self.statistics["source_table"] == "processed_measurements_cnn_training"
+        #     ]
+        #     .reset_index(drop=True)["min"]
+        #     .values[0]
+        # )
+        # self.data_max = (
+        #     self.statistics.loc[
+        #         self.statistics["source_table"] == "processed_measurements_cnn_training"
+        #     ]
+        #     .reset_index(drop=True)["max"]
+        #     .values[0]
+        # )
         self.splitted_keys = mpi.API().splitted_keys()
         self.datetimes = (
             self.splitted_keys.loc[self.splitted_keys["type"] == "cnn_validation"]
@@ -115,8 +115,8 @@ class MeasurementValidation(Dataset):
     def __get_scaler__(self):
         return "MinMaxScaler"
 
-    def __get_min_max__(self):
-        return self.data_min, self.data_max
+    # def __get_min_max__(self):
+    #     return self.data_min, self.data_max
 
     def __getitem__(self, idx):
         selected_key = self.datetimes[idx]

@@ -35,6 +35,12 @@ class API:
         )
         return pd.read_sql(sql=query, con=self.engine)
 
+    def re_splitted_keys(self):
+        query = (
+            f"SELECT * FROM measurements.re_splitted_keys_for_training_and_validation_pm"
+        )
+        return pd.read_sql(sql=query, con=self.engine)
+
     def meta_data(self, dates):
         dates = [pd.Timestamp(t) for t in dates]
         timestamps_str = tuple(t.strftime("%Y-%m-%d %H:%M:%S") for t in dates)
