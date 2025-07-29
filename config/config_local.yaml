@@ -19,11 +19,11 @@ cnn:
   first_layer: 1020
   second_layer: 510
   third_layer: 206
-  fourth_layer: 256
+  fourth_layer: 206
   fc_first_layer: 512
   max_pool: 2
   adaptive_pool: 1
-  use_processed_measurements: False
+  use_processed_measurements: True
   use_processed_synthetics: True
 
 splitter:

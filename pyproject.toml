@@ -37,6 +37,7 @@ shap = "^0.48.0"
 torchview = "^0.2.7"
 graphviz = "^0.21"
 mglearn = "^0.2.0"
+statsmodels = "^0.14.5"
 
 
 [[tool.poetry.source]]

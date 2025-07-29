@@ -52,10 +52,10 @@ class Training:
                 logging.warning("LOADING: RELABLED SYNTHETIC KEYS")
                 rng = np.random.default_rng(seed=42)
                 loaded_keys = vpi.API().re_unique_dates()
-                self.synthetic_keys = rng.permutation(np.array(loaded_keys)).tolist()[0:1000]
+                self.synthetic_keys = rng.permutation(np.array(loaded_keys)).tolist()[0:1022]
             else:
                 logging.warning("LOADING: SYNTHETIC KEYS")
-                self.synthetic_keys = random.shuffle(vpi.API().unique_dates())[0:1000]
+                self.synthetic_keys = random.shuffle(vpi.API().unique_dates())[0:1022]
             self.len_synthetics = len(self.synthetic_keys)
         self.keys_cnn_training, self.keys_cnn_validation = self.__get_processed_keys()
 
@@ -240,7 +240,7 @@ class Training:
             self.validation_auc_history.append(roc_auc)
 
     def cnn_training(self):
-        for epoch in range(20):
+        for epoch in range(100):
             probs_all, y_train_all = [], []
             epoch_loss = 0
             len_loader = 0
