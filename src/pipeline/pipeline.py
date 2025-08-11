@@ -32,7 +32,9 @@ class Pipeline:
         self.wlen = int(load_config()["peakfinder"]["wlen"])
         self.width = int(load_config()["peakfinder"]["width"])
         self.rel_height = int(load_config()["peakfinder"]["rel_height"])
-        self.nuclide_data = npi.API().nuclides(load_config()["repeakfinder"]["nuclides"])
+        self.nuclide_data = npi.API().nuclides(
+            load_config()["repeakfinder"]["nuclides"]
+        )
         self.engine = load_engine()
 
     def train_vae(self):
@@ -55,7 +57,7 @@ class Pipeline:
             use_processed_measuremnets=bool(
                 load_config()["cnn"]["use_processed_measurements"],
             ),
-            use_re_processed_data=use_relabled_data
+            use_re_processed_data=use_relabled_data,
         ).cnn_training()
 
     def download_nuclides(self):
@@ -76,7 +78,10 @@ class Pipeline:
         Splitter().split_keys()
 
     def generate_synthetics(
-            self, synthetic_prefix="", truncate_table=False, use_measurements_for_latent=False
+        self,
+        synthetic_prefix="",
+        truncate_table=False,
+        use_measurements_for_latent=False,
     ):
         if truncate_table is True:
             query = text("""
@@ -121,9 +126,9 @@ class Pipeline:
                             grouped.row_count,
                             psl.*
                      FROM (SELECT ps.datetime,
-                                  COUNT(DISTINCT ps.identified_isotope)                                          AS identified_isotopes,
+                                  COUNT(DISTINCT ps.identified_isotope)      AS identified_isotopes,
                                   STRING_AGG(DISTINCT ps.identified_isotope, ','
-                                             ORDER BY ps.identified_isotope)                                     AS row_count
+                                             ORDER BY ps.identified_isotope) AS row_count
                            FROM measurements.processed_synthetics ps
                            GROUP BY ps.datetime) grouped
                               JOIN measurements.processed_synthetics_latent_space psl
@@ -158,7 +163,7 @@ class Pipeline:
                 nuclides_intensity=self.nuclide_intensity,
                 matching_ratio=self.matching_ratio,
                 interpolate_energy=self.interpolate_energy,
-                measurement_peaks_prefix=measurement_peaks_prefix
+                measurement_peaks_prefix=measurement_peaks_prefix,
             ).process_spectrum(return_detailed_view=False)
 
     def relable_measurements(self):
@@ -175,11 +180,15 @@ class Pipeline:
         len_keys = len(measurement_keys)
         processed = 0
         for i in range(0, len_keys, 500):
-            batch = measurement_keys[i:i + 500]
+            batch = measurement_keys[i : i + 500]
             meas_data = ppi.API().measurement(batch)
             for measurement_key in batch:
-                logging.warning(f"Measurement Key: {measurement_key}, {processed}/{len_keys}")
-                filtered_data = meas_data.loc[meas_data["datetime"] == measurement_key].reset_index(drop=True)
+                logging.warning(
+                    f"Measurement Key: {measurement_key}, {processed}/{len_keys}"
+                )
+                filtered_data = meas_data.loc[
+                    meas_data["datetime"] == measurement_key
+                ].reset_index(drop=True)
                 RePeakFinder(
                     selected_date=None,
                     data=filtered_data[["datetime", "energy", "count"]],
@@ -188,7 +197,7 @@ class Pipeline:
                     matching_ratio=0,
                     interpolate_energy=False,
                     measurement_peaks_prefix="",
-                    nuclide_data=self.nuclide_data
+                    nuclide_data=self.nuclide_data,
                 ).process_spectrum(return_detailed_view=False)
                 processed += 1
 
@@ -207,11 +216,15 @@ class Pipeline:
         len_keys = len(synthetic_keys)
         processed = 0
         for i in range(0, len_keys, 500):
-            batch = synthetic_keys[i:i + 500]
+            batch = synthetic_keys[i : i + 500]
             synthetic_data = vpi.API().synthetic(batch)
             for synthetic_key in batch:
-                logging.warning(f"Synthetic Key: {synthetic_key}, {processed}/{len_keys}")
-                filtered_data = synthetic_data.loc[synthetic_data["datetime"] == synthetic_key].reset_index(drop=True)
+                logging.warning(
+                    f"Synthetic Key: {synthetic_key}, {processed}/{len_keys}"
+                )
+                filtered_data = synthetic_data.loc[
+                    synthetic_data["datetime"] == synthetic_key
+                ].reset_index(drop=True)
                 RePeakFinder(
                     selected_date=None,
                     data=filtered_data[["datetime", "energy", "count"]],
@@ -220,28 +233,28 @@ class Pipeline:
                     matching_ratio=0,
                     interpolate_energy=False,
                     measurement_peaks_prefix="",
-                    nuclide_data=self.nuclide_data
+                    nuclide_data=self.nuclide_data,
                 ).process_spectrum(return_detailed_view=False)
                 processed += 1
 
     def run(
-            self,
-            download_nuclides=False,
-            prepare_measurements=False,
-            find_measurements_peaks=False,
-            split_dataset=False,
-            vae_training=False,
-            generate_synthetics=False,
-            truncate_synhtetics=False,
-            use_measurements_for_latent=False,
-            relable_measurements=False,
-            relable_synthetics=False,
-            synthetic_prefix="",
-            measurement_peaks_prefix="",
-            cnn_training=False,
-            use_relabled_data=False,
-            resplit_data=False,
-            rf_training=False,
+        self,
+        download_nuclides=False,
+        prepare_measurements=False,
+        find_measurements_peaks=False,
+        split_dataset=False,
+        vae_training=False,
+        generate_synthetics=False,
+        truncate_synhtetics=False,
+        use_measurements_for_latent=False,
+        relable_measurements=False,
+        relable_synthetics=False,
+        synthetic_prefix="",
+        measurement_peaks_prefix="",
+        cnn_training=False,
+        use_relabled_data=False,
+        resplit_data=False,
+        rf_training=False,
     ):
         if download_nuclides is True:
             self.download_nuclides()
@@ -254,7 +267,9 @@ class Pipeline:
         if vae_training is True:
             self.train_vae()
         if generate_synthetics is True:
-            self.generate_synthetics(synthetic_prefix, truncate_synhtetics, use_measurements_for_latent)
+            self.generate_synthetics(
+                synthetic_prefix, truncate_synhtetics, use_measurements_for_latent
+            )
         if cnn_training is True:
             self.train_cnn(use_relabled_data)
         if relable_measurements is True:
@@ -265,4 +280,3 @@ class Pipeline:
             ReSplitter().split_keys()
         if rf_training is True:
             RF().training()
-

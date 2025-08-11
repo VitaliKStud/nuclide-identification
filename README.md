@@ -43,23 +43,40 @@ Structure:
 ```
 
 
-### Environment Variables
-| Name | Value                                                                                                     |
-|---------------|-----------------------------------------------------------------------------------------------------------|
-| CONFIG_FILE  | the name of the used config-file for the envirnoment (EXAMPLE: config_local.yaml or config_service.yaml)) |
-| Content Cell  | Content Cell                                                                                              |
+## Starting
 
-WICHTIG: WAS TUT DER VAE AM ENDE?
+1. Install dependencies
 
-09.07 ihm zuschicken
+- Python version: 3.13.1
+- pip: 24.3.1
+- poetry as package-manager
 
-Ein paar Validierungen plotten und eibinden in die thesis
-Hyperparametersatz
+```
+pip install poetry 
+poetry install
+```
 
-Proof of concept ist vorhanden
+Install CUDA on your Machine or use CPU for training.
 
-This repository is about to identify nuclides via neural network techniques for gamma-ray 
-measurements. 
+2. Setup environment variables:
+
+**Environment Variables**
+
+| Name                       | Value                                                                                                    |
+|----------------------------|----------------------------------------------------------------------------------------------------------|
+| CONFIG_FILE                | the name of the used config-file for the envirnoment (EXAMPLE: config_local.yaml or config_service.yaml)) |
+| config/config_local.yaml   | Check this file (for running on local machine)                                                           |
+| config/config_service.yaml | Check this file (for dashboard)                                                                          |
+
+
+
+
+2. Run docker-compose (MlFlow, PostgreSQL, S3-Bucket, Adminer (Frontend for PostgreSQL) and Dashboard)
+
+```
+docker-compose -up -d
+```
+
 
 
 -- For datetime-based aggregations
@@ -120,9 +137,7 @@ TODO:
 
 ## Environment and Setup
 
-- Python version: 3.13.1
-- pip: 24.3.1
-- poetry as package-manager
+
 
 ```
 pip install poetry
