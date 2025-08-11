@@ -28,16 +28,13 @@ class Measurements(mpi.API):
     def process_single_file(self, filename):
         logging.info(f"Reading {self.path_measurements}{filename}")
         with open(f"{self.path_measurements}{filename}", "r") as f:
-            # Converting Filename to Datetime
             date_from_file_name = datetime.strptime(
                 filename.split("_")[0] + " " + filename.split("_")[1],
                 "%Y-%m-%d %H-%M-%S",
             )
 
-            # Getting All lines
             lines = [i.replace(",", ".") for i in f.readlines()]
 
-            # Processing Meta-Data
             channels = int(lines[0].split(":")[-1].strip("\n "))
             match = re.search(
                 self.pattern_time,
@@ -59,21 +56,18 @@ class Measurements(mpi.API):
             self.append_meta_data(
                 date_from_file_name, coefficients, realtime, livetime, channels
             )
-            # Finish Processing MEta-Data
-
-            # Processing Measurements
             data_rows = [
                 i.replace("\n", "").replace(" ", "").split("\t") for i in lines[5:]
             ]
             data_rows = [
                 (date_from_file_name, float(i[0]), int(i[1])) for i in data_rows
             ]
-            # Finish Processing Measurements
-
             return data_rows
 
     def process_measurements_to_csv_to_db(self):
-        """ """
+        """
+        Loading all .csv files and writing to PostgreSQL
+        """
         all_measurement_paths = [
             i for i in os.listdir(self.path_measurements) if ".txt" in i
         ]

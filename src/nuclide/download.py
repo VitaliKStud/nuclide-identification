@@ -1,12 +1,4 @@
-"""
-This file contains all functionality to download nuclide-data from
-https://www-nds.iaea.org/relnsd/vcharthtml/api_v0_guide.html
 
-Complete pipeline -> DOWNLOAD DATA AS CSV FROM API -> SAVE TO DATABASE (POSTGRES)
-
-EXAMPLE:
-    Download().download_all_nuclides() # Will download all nuclides
-"""
 
 import requests
 import logging
@@ -18,6 +10,15 @@ logging.getLogger().setLevel(logging.INFO)
 
 
 class Download(npi.API):
+    """
+    This file contains all functionality to download nuclide-data from
+    https://www-nds.iaea.org/relnsd/vcharthtml/api_v0_guide.html
+
+    Complete pipeline -> DOWNLOAD DATA AS CSV FROM API -> SAVE TO DATABASE (POSTGRES)
+
+    EXAMPLE:
+        Download().download_all_nuclides() # Will download all nuclides
+    """
     def __init__(self):
         super().__init__()
         self.ground_state_path = f"{self.path_output}ground_state.csv"
@@ -123,8 +124,8 @@ class Download(npi.API):
         """
         Will load all nuclides from API. All data will be saved:
 
-        - data/nuclides/...             # Singe files downloaded from the API
-        - data/combined_nuclides.csv    # All files combined into one large file.
+        - data/nuclides/... Single files downloaded from the API
+        - data/combined_nuclides.csv All files combined into one large file.
         """
 
         ground_state = self.get_ground_state(compromised=True)

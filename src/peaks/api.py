@@ -4,6 +4,9 @@ import src.nuclide.api as npi
 
 
 class API:
+    """
+    Loading labeled data. Especially for raw measurement and labeled measurements.
+    """
     def __init__(self):
         self.engine = load_engine()
         self.npi = npi.API()

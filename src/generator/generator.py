@@ -11,6 +11,9 @@ import src.peaks.api as ppi
 
 
 class Generator:
+    """
+    Generating synthetic data, after generation this will label included nuclides within synthetic data.
+    """
     def __init__(self):
         self.device = load_config()["vae"]["device"]
         self.latent_dim = load_config()["vae"]["latent_dim"]
@@ -33,6 +36,9 @@ class Generator:
         return self.model
 
     def get_min_max(self):
+        """
+        Loading min max value for rescaling synthetic data
+        """
         client = mlflow.tracking.MlflowClient(
             tracking_uri=load_config()["mlflow"]["uri"]
         )
@@ -43,6 +49,9 @@ class Generator:
         return min, max
 
     def __load_model(self):
+        """
+        Loading VAE model for generating synthetic data.
+        """
         os.environ["AWS_ACCESS_KEY_ID"] = load_config()["minio"]["AWS_ACCESS_KEY_ID"]
         os.environ["AWS_SECRET_ACCESS_KEY"] = load_config()["minio"][
             "AWS_SECRET_ACCESS_KEY"
@@ -63,6 +72,10 @@ class Generator:
         return ((x - self.min) / (self.max - self.min)) + 1e-8
 
     def __generate_latent_space_from_measurements(self):
+        """
+        Generating latent space via measurements, by passing measurement spectra and generating latent space
+        of it.
+        """
         all_latents = []
         all_datetimes = []
         splitted_keys = mpi.API().splitted_keys()
@@ -75,7 +88,7 @@ class Generator:
         for group in measurements.groupby("datetime"):
             datetime = group[0]
             measurement = group[1].sort_values(by="energy")[["energy", "count"]]
-            for i in range(10):
+            for i in range(10): # Number of synthetics out of a measurement
                 all_datetimes.append(str(datetime))
                 x = self.scale(
                     torch.tensor(
@@ -93,6 +106,11 @@ class Generator:
         return all_latents, all_datetimes
 
     def process(self, latent_space, prefix=""):
+        """
+        latent space can be passed to this function, if any latent space is used to generate data.
+        Else it will generate latent space out of measurements and generate spectra. This function will
+        also save the processed spectra into PostgreSQL and label nuclides within snythetic data here.
+        """
         all_datetimes = None
         if latent_space is None:
             latent_space, all_datetimes = (
@@ -147,6 +165,9 @@ class Generator:
                 logging.warning(f"Could not process spectrum: {e}")
 
     def generate(self, latent_space):
+        """
+        Encoding out of latent space vector and interpolating dependend energy for generated spectra
+        """
         step_size = load_config()["measurements"]["step_size"]
         energy_max = step_size * load_config()["measurements"]["number_of_channels"]
         energy_axis = np.arange(0, energy_max, step_size)

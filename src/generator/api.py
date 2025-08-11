@@ -4,6 +4,9 @@ import src.nuclide.api as npi
 
 
 class API:
+    """
+    API for loading generated, labeled data.
+    """
     def __init__(self):
         self.engine = load_engine()
         self.npi = npi.API()

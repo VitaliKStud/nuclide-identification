@@ -1,6 +1,5 @@
 from dash import dcc, html, Input, Output, callback, register_page
 import plotly.graph_objects as go
-import src.measurements.api as mpi
 import src.peaks.api as ppi
 import src.vae.api as spi
 from datetime import datetime

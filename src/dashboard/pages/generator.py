@@ -1,9 +1,5 @@
 from dash import dcc, html, Input, Output, callback, register_page
 import plotly.graph_objects as go
-import src.measurements.api as mpi
-import src.peaks.api as ppi
-import src.vae.api as spi
-from datetime import datetime
 from src.generator.generator import Generator
 import numpy as np
 import dash_bootstrap_components as dbc
@@ -51,7 +47,7 @@ content = dbc.Col(
         dbc.Row(dcc.Graph(id="generator-graph")),
     ],
     style={
-        "marginLeft": "370px",  # slightly more than sidebar width
+        "marginLeft": "370px",
         "padding": "20px",
         "height": "100vh",
     },
@@ -60,9 +56,8 @@ content = dbc.Col(
 layout = dbc.Container(dbc.Row([sidebar, content]), fluid=True, style={"padding": 0})
 
 
-# Callback to update chart and table based on user input
 @callback(
-    Output("generator-graph", "figure"),  # Output data for the table
+    Output("generator-graph", "figure"),
     [Input(f"latent-dim:{dim}", "value") for dim in range(latent_dim)],
 )
 def update_generator_plot(*generator_slider):

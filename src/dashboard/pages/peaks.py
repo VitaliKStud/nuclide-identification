@@ -1,7 +1,6 @@
 from dash import dcc, html, Input, Output, callback, register_page, dash_table
 import plotly.graph_objects as go
 import src.measurements.api as mpi
-import src.peaks.api as ppi
 import src.vae.api as spi
 from datetime import datetime
 import dash_bootstrap_components as dbc
@@ -112,7 +111,7 @@ content = dbc.Col(
         ),
     ],
     style={
-        "marginLeft": "370px",  # slightly more than sidebar width
+        "marginLeft": "370px",
         "padding": "20px",
         "height": "100vh",
     },

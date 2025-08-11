@@ -9,6 +9,9 @@ import logging
 
 
 class Splitter:
+    """
+    Initial splitting based on initial labeling. Especially for VAE and validation of VAE. Reserving CNN Training data.
+    """
     def __init__(self):
         self.unique_dates = mpi.API().unique_dates()
         self.isotope_per_pm = spi.API().view_isotope_per_pm()

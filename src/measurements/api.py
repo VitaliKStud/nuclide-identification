@@ -3,6 +3,9 @@ from config.loader import load_config, load_engine
 
 
 class API:
+    """
+    API for loading raw measurements and splitted keys
+    """
     def __init__(self):
         self.engine = load_engine()
         self.path_measurements = load_config()["path"]["measurements"]

@@ -9,6 +9,9 @@ import logging
 
 
 class ReSplitter:
+    """
+    Splitting keys. Filtering out used keys for validation and training of VAE.
+    """
     def __init__(self):
         self.unique_dates = mpi.API().unique_dates()
         self.engine = load_engine()

@@ -26,6 +26,11 @@ cnn:
   use_processed_measurements: True
   use_processed_synthetics: True
 
+randomforest:
+  use_processed_measurements: True
+  use_processed_synthetics: True
+  use_yielder: True
+
 splitter:
   vae: { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20, "6": 10 } # Distribution to split identified isotopes as a training/test dataset, 1 means NO ISOTOPES, JUST MEASUREMENT
   cnn_validation: { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20, "6": 10 } # Distribution for Validation Dataset, 1 Means NO ISOTOPES, JUST MEASUREMENT

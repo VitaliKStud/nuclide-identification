@@ -14,6 +14,10 @@ from config.loader import load_config
 
 
 class PeakFinder(ppi.API):
+    """
+    Statistical Peak-Detection class. Identifying peaks by prominence, scaling (z-scaler) and interpolating
+    the energy-axis for dim-reduction.
+    """
     def __init__(
             self,
             selected_date,
@@ -100,11 +104,6 @@ class PeakFinder(ppi.API):
         ):
             try:
                 x = np.arange(left_base, right_base)
-                # fallback to +-5 if the range is too small to fit or too large to be realistic
-                # if len(x) <= 10:
-                #     x = np.arange(peak - 5, peak + 5)
-                # elif len(x) > 30:
-                #     x = np.arange(peak - 5, peak + 5)
                 if len(x) <= 10 or len(x) > 30:
                     x = np.arange(max(0, peak - 5), min(len(self.data), peak + 5))
                 y = self.data["counts_cleaned"].iloc[x]
@@ -164,11 +163,11 @@ class PeakFinder(ppi.API):
         return background
 
     def __calculate_confidence(self, peak, energy, std):
-        """Calculate confidence score for peak matching an energy value."""
-        # Use a Gaussian probability density function
+        """
+        Calculate confidence score for peak matching an energy value.
+        """
         confidence = norm.pdf(energy, loc=peak, scale=std)
         std = max(std, 1.0)
-        # Normalize to [0,1] range
         confidence = confidence / norm.pdf(peak, loc=peak, scale=std)
         return confidence
 

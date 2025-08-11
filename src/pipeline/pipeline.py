@@ -16,6 +16,7 @@ import src.vae.api as vpi
 from src.peaks.refinder import RePeakFinder
 import src.nuclide.api as npi
 from src.measurements.resplitter import ReSplitter
+from src.randomforest.rf import RF
 
 
 class Pipeline:
@@ -240,6 +241,7 @@ class Pipeline:
             cnn_training=False,
             use_relabled_data=False,
             resplit_data=False,
+            rf_training=False,
     ):
         if download_nuclides is True:
             self.download_nuclides()
@@ -261,3 +263,6 @@ class Pipeline:
             self.relable_synthetics()
         if resplit_data is True:
             ReSplitter().split_keys()
+        if rf_training is True:
+            RF().training()
+

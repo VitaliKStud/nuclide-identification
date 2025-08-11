@@ -1,4 +1,12 @@
-# nuclide-identification
+# Nuclide-Identification
+
+This project includes 
+
+## Environment Variables
+| Name | Value                                                                                                     |
+|---------------|-----------------------------------------------------------------------------------------------------------|
+| CONFIG_FILE  | the name of the used config-file for the envirnoment (EXAMPLE: config_local.yaml or config_service.yaml)) |
+| Content Cell  | Content Cell                                                                                              |
 
 TODO:
 BASELINE RANDOM FOREST FÜR DETECTOR

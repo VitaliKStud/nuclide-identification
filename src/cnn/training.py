@@ -10,12 +10,11 @@ import src.vae.api as vpi
 import src.statistics.api as spi
 import src.peaks.api as ppi
 from sklearn.preprocessing import MultiLabelBinarizer
-from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score, roc_curve
+from sklearn.metrics import roc_auc_score
 from config.loader import load_config
 import logging
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import random
 from sklearn.metrics import roc_curve, auc
@@ -29,6 +28,18 @@ class Training:
             use_re_processed_data=False,
             chunk_ps=500,
     ):
+        """
+        The Training class of the cnn.
+
+        :param use_processed_measuremnets: Will use labeled and transformed measurements for training
+        :type use_processed_measuremnets: bool
+        :param use_processed_synthetics: Will use labeled and transformed synthetics for training
+        :type use_processed_synthetics: bool
+        :param use_re_processed_data: Will use data of second labeling-step for training
+        :type use_re_processed_data: bool
+        :param chunk_ps: Depends on your local RAM, will train and load data in the size of the chunks
+        :type chunk_ps: int
+        """
         self.use_processed_measuremnets = use_processed_measuremnets
         self.use_processed_synthetics = use_processed_synthetics
         self.use_re_processed_data = use_re_processed_data
@@ -52,10 +63,10 @@ class Training:
                 logging.warning("LOADING: RELABLED SYNTHETIC KEYS")
                 rng = np.random.default_rng(seed=42)
                 loaded_keys = vpi.API().re_unique_dates()
-                self.synthetic_keys = rng.permutation(np.array(loaded_keys)).tolist()[0:1022]
+                self.synthetic_keys = rng.permutation(np.array(loaded_keys)).tolist()[0:844]
             else:
                 logging.warning("LOADING: SYNTHETIC KEYS")
-                self.synthetic_keys = random.shuffle(vpi.API().unique_dates())[0:1022]
+                self.synthetic_keys = random.shuffle(vpi.API().unique_dates())[0:844]
             self.len_synthetics = len(self.synthetic_keys)
         self.keys_cnn_training, self.keys_cnn_validation = self.__get_processed_keys()
 
@@ -99,6 +110,9 @@ class Training:
         self.validation_auc_history = []
 
     def __get_processed_keys(self):
+        """
+        Loading Keys for Training and Validation
+        """
         keys_training = (
             self.splitted_keys.loc[self.splitted_keys["type"] == "cnn_training"]
             .reset_index(drop=True)["datetime"]
@@ -113,6 +127,10 @@ class Training:
         return keys_training, keys_validation
 
     def __yield_loader(self):
+        """
+        Yielding the data-set chunk-way. Depends on which data-set has been selected through the
+        initialization of this class.
+        """
         if self.use_processed_measuremnets:
             if self.use_processed_synthetics is True:
                 pass
@@ -128,6 +146,7 @@ class Training:
                 if self.use_re_processed_data:
                     logging.warning("LOADING: RELABLED SYNTHETIC DATA FOR TRAINING...")
                     dataset = vpi.API().re_synhtetics(selected_synthetics_keys)
+                    logging.warning(f"LEN SYNTHETIC RELABLED DATA: {len(dataset)}")
                 else:
                     logging.warning("LOADING: SYNTHETIC DATA FOR TRAINING...")
                     dataset = vpi.API().synthetic(selected_synthetics_keys)
@@ -149,6 +168,9 @@ class Training:
                 yield DataLoader(training_cnn_ps, batch_size=64, shuffle=True)
 
     def __get_mlb_fitter(self):
+        """
+        Fitting and creating a MultiLabelBinarizer for all nuclides.
+        """
         if self.use_re_processed_data is True:
             logging.warning("LOADING: RELABLED IDENTIFIED ISOTOPES IN DATA")
             isotopes = spi.API().view_re_identified_isotopes()
@@ -167,6 +189,9 @@ class Training:
         return mlb
 
     def __save_model(self):
+        """
+        Saving the trained model based on the validation-data-set. Saving artifacts and metrics into MLFlow
+        """
         os.environ["AWS_ACCESS_KEY_ID"] = self.configs["minio"]["AWS_ACCESS_KEY_ID"]
         os.environ["AWS_SECRET_ACCESS_KEY"] = self.configs["minio"][
             "AWS_SECRET_ACCESS_KEY"
@@ -215,8 +240,10 @@ class Training:
             for validation_entropy_loss in self.validation_entropy_loss_history:
                 mlflow.log_metric("validation_entropy_loss", validation_entropy_loss)
 
-
     def __track_roc_curve_values(self, y_train_all_numpy, probs_all_numpy, for_training=False):
+        """
+        Calculation of the ROC curve for all classes for every epoch (validation and training)
+        """
         classes = self.mlb.classes_
         n_classes = y_train_all_numpy.shape[1]
         if n_classes != len(classes):
@@ -240,7 +267,10 @@ class Training:
             self.validation_auc_history.append(roc_auc)
 
     def cnn_training(self):
-        for epoch in range(100):
+        """
+        Training through 100 Epoch (if change is needed, could be set to other value)
+        """
+        for epoch in range(100): # NUMBER OF EPOCHS
             probs_all, y_train_all = [], []
             epoch_loss = 0
             len_loader = 0
@@ -289,6 +319,9 @@ class Training:
         self.__save_model()
 
     def __cnn_validation(self):
+        """
+        Validating results for the CNN for every epoch and tracking via MLFlow
+        """
         probs_all_validation = []
         y_train_all_validation = []
         epoch_loss = 0
