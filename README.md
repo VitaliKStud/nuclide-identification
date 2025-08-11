@@ -1,28 +1,53 @@
 # Nuclide-Identification
 
-This project includes 
+This project provides:
 
-## Environment Variables
+- statisical method of prominence to label nuclides within gamma-spectra
+- Variational Autoencoders (VAE) for generating synthetic gamma-spectra
+- Random Forest and Convolutional Neural Network (CNN) (1-D) to classify nuclides based on labels
+
+Backend:
+
+- MLFlow (Model-Tracking)
+- S3-Bucket (collecting mlflow-artifacts)
+- PostgreSQL (gamma-spectra, nuclide-metadata, mlflow-backend)
+
+Frontend:
+- Plotly Dashboard to explore labaled spectra, raw data and some statistics
+- MLFlow Dashboard
+
+Structure:
+
+
+```
+.
+├── docker-entrypoint-initdb.d\         # Init PostgreSQL script
+├── cache\                              # Some cache data for MLFlow
+├── config\                             # Environment Configurations
+├── data\                               # Data-Folder
+│   ├── measurements\                   # Gamma-Spectra
+│   └── nuclides\                       # Scraped Nuclide-Data from API (https://www-nds.iaea.org).
+├── plots\                              # Plots-Folder
+├── src\                                # Packed Code
+│   ├── cnn\                            # Convolutional Neural Network for classify Nuclides
+│   ├── dashboard\                      # Exploration Dashboard (Frontend)
+│   ├── generator\                      # Data-Generator based on VAE
+│   ├── measurements\                   # Preparing Measurements (.csv > PostgreSQL)
+│   ├── nuclide\                        # Nuclide Scrapper
+│   ├── peaks\                          # Statistical Labeling
+│   ├── pipeline\                       # The whole Pipeline
+│   ├── randomforest\                   # Random Forest for classify Nuclides
+│   ├── statistics\                     # Statistical API for PostgreSQL
+│   └── vae\                            # Variational Autoencoder to generate synthetic data
+└── tmp\    
+```
+
+
+### Environment Variables
 | Name | Value                                                                                                     |
 |---------------|-----------------------------------------------------------------------------------------------------------|
 | CONFIG_FILE  | the name of the used config-file for the envirnoment (EXAMPLE: config_local.yaml or config_service.yaml)) |
 | Content Cell  | Content Cell                                                                                              |
-
-TODO:
-BASELINE RANDOM FOREST FÜR DETECTOR
-Nur Ausgangsdaten -> Performance am Ende | Wie viele für Synthetische und verteilen
-Ausgangsdaten + GenData -> ...
-Nur GenData -> ... | WIE VIELE FÜR PERFORMANCE 100...200...300? 100.000 200.000 300.000
-Gradienten-Plots und Entwicklung
-Synthetic mit Ausgangsdaten vergleichen, aber GLEICHE Anzahl-SAMPLES -> Ähnlichkeit?
-Hypothesentest
-Dashboard und rest minimal erwähne
-Pooling für einzelne Samples
-Synthetische Daten besser funktionier, da weniger rauschen bei synthetischen
-Validierung auf synthetischen Daten
-Intensität der Nuklide
-Verteilung der Synthetischen Daten
-Warum ähnlich wie monte carlo
 
 WICHTIG: WAS TUT DER VAE AM ENDE?
 
@@ -105,17 +130,6 @@ pip install poetry
 
 ## Folder Structure
 
----
-```
-.
-├── data\
-│   ├── measurements\       # Measurements of Gamma-Ray.
-│   └── nuclides\           # Scraped Nuclide-Data from API (https://www-nds.iaea.org).
-├── docs\                   # Documentation files.
-├── plots\                  # Folder for created plots.
-├── src\                    # Source-Code.
-└── tests\                  # Unit-Tests.
-```
 
 ---
 

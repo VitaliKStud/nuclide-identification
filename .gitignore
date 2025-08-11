@@ -4,7 +4,6 @@
 *.json
 .idea/
 plots/
-tmp/
 db-pg/
 
 .ipynb_checkpoints/
