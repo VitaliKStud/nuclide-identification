@@ -8,8 +8,6 @@ from src.vae.vae import VAE
 from torch.utils.data import DataLoader
 from src.vae.measurement import Measurement
 from config.loader import load_config
-import numpy as np
-
 import logging
 import os
 
